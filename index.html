@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediCam – Web OEM (White)</title>
+<meta name="description" content="Endoscope web viewer. White theme, vendor-style layout.">
+<style>
+  :root{--bg:#fff;--text:#111;--line:#e6e6e6;}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto}
+  /* Top bar */
+  .toolbar{display:flex;align-items:center;gap:12px;padding:10px 14px;
+    border-bottom:1px solid var(--line);background:#fff}
+  .title{font-weight:700;font-size:18px;margin-right:12px}
+  .btn{background:#f2f2f2;border:1px solid var(--line);color:#111;border-radius:6px;padding:8px 14px;cursor:pointer}
+  .btn.primary{background:#111;color:#fff;border-color:#111}
+  select{padding:8px;border:1px solid var(--line);border-radius:6px;min-width:220px;background:#fff;color:#111}
+  .hint{margin-left:auto;color:#666;font-size:12px}
+  /* Main */
+  .main{display:grid;grid-template-columns:1fr 320px;gap:12px;padding:12px}
+  .stage{display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:8px;min-height:560px;position:relative}
+  .canvas-box{width:624px;height:624px;background:#000;border-radius:8px;overflow:hidden;position:relative}
+  canvas{width:624px;height:624px}
+  .saved{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;padding:6px 10px;border-radius:8px;display:none}
+  .controls{display:flex;flex-direction:column;gap:12px}
+  .card{border:1px solid var(--line);border-radius:8px;background:#fff}
+  .card h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:#222}
+  .card .body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .status{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 12px;background:#fff;color:#444;font-size:12px}
+  input[type="range"]{width:100%}
+  .thumb{width:100%;aspect-ratio:4/3;border:1px solid var(--line);border-radius:6px;object-fit:contain;background:#fafafa}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Top bar -->
+  <div class="toolbar">
+    <div class="title">MediCam – Web OEM</div>
+    <div>鏡頭：</div>
+    <select id="deviceSelect"></select>
+    <button class="btn" id="btnRefresh">重新整理</button>
+    <button class="btn primary" id="btnOpen">啟動</button>
+    <button class="btn" id="btnClose">停止</button>
+    <div class="hint">F9 錄影 / F10 截圖 / F11 -10° / +/- 變焦</div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Left: stage -->
+    <div class="stage">
+      <div class="canvas-box">
+        <canvas id="canvas" width="624" height="624"></canvas>
+        <div class="saved" id="savedToast">Saved!</div>
+      </div>
+    </div>
+
+    <!-- Right: controls -->
+    <div class="controls">
+      <div class="card">
+        <h3>操作</h3>
+        <div class="body">
+          <div class="row">
+            <button class="btn primary" id="btnSnap">截圖 (F10)</button>
+            <button class="btn" id="btnRec">開始錄影 (F9)</button>
+          </div>
+          <div class="row">
+            <button class="btn" id="btnMirrorLR">左右鏡像</button>
+            <button class="btn" id="btnMirrorUD">上下鏡像</button>
+          </div>
+          <div class="row">
+            <label>角度
+              <select id="rotateFixed">
+                <option value="0">0°</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label style="width:100%">變焦
+              <input type="range" id="zoom" min="100" max="400" value="130">
+              <span id="zoomText">1.30x</span>
+            </label>
+          </div>
+          <div class="row">
+            <label><input type="checkbox" id="autoEnh" checked> 自動最佳化（近距）</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>清晰度調整</h3>
+        <div class="body">
+          <label>Gamma <input type="range" id="slGamma" min="80" max="180" value="130"></label>
+          <label>銳化 <input type="range" id="slSharp" min="0" max="100" value="70"></label>
+          <label>飽和度 <input type="range" id="slSat" min="-50" max="50" value="8"></label>
+          <label>降噪 <input type="range" id="slDn" min="0" max="30" value="6"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>最新截圖</h3>
+        <div class="body">
+          <img class="thumb" id="thumb" alt="">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom status -->
+  <div class="status">
+    <div id="leftStatus">Ready</div>
+    <div id="rightStatus">Res: 624×624  FPS: --  REC: OFF</div>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
+let stream=null, video=null, animationId=null;
+let mirrorLR=false, mirrorUD=false, rotateDeg=0, zoom=1.3;
+let recording=false, recDotVisible=false, recBlinkTimer=null, mediaRecorder=null, recordedChunks=[];
+let lastFpsTime=null, frames=0;
+const $=id=>document.getElementById(id);
+const deviceSelect=$('deviceSelect'), btnOpen=$('btnOpen'), btnClose=$('btnClose'), btnRefresh=$('btnRefresh');
+const btnMirrorLR=$('btnMirrorLR'), btnMirrorUD=$('btnMirrorUD'), btnRec=$('btnRec'), btnSnap=$('btnSnap');
+const rotateFixed=$('rotateFixed'), zoomSlider=$('zoom'), zoomText=$('zoomText'), autoEnh=$('autoEnh');
+const slGamma=$('slGamma'), slSharp=$('slSharp'), slSat=$('slSat'), slDn=$('slDn');
+const leftStatus=$('leftStatus'), rightStatus=$('rightStatus'), savedToast=$('savedToast'), thumb=$('thumb');
+
+async function listDevices(){
+  try{
+    const devices=await navigator.mediaDevices.enumerateDevices();
+    const vids=devices.filter(d=>d.kind==='videoinput');
+    deviceSelect.innerHTML='';
+    vids.forEach((v,i)=>{ const o=document.createElement('option'); o.value=v.deviceId; o.text=v.label||`Camera ${i+1}`; deviceSelect.appendChild(o); });
+    if(vids.length===0){ const o=document.createElement('option'); o.value=''; o.text='未找到鏡頭'; deviceSelect.appendChild(o); }
+  }catch(e){ alert('瀏覽器不支援或未允許相機'); }
+}
+async function openSelected(){
+  closeStream();
+  const id=deviceSelect.value;
+  const constraints={video:{deviceId:id?{exact:id}:undefined, width:{ideal:1280}, height:{ideal:720}}};
+  stream=await navigator.mediaDevices.getUserMedia(constraints);
+  video=document.createElement('video'); video.srcObject=stream; video.playsInline=true; await video.play();
+  startRender();
+}
+function closeStream(){ stopRender(); if(mediaRecorder&&recording) stopRecording(); if(stream){stream.getTracks().forEach(t=>t.stop());} stream=null; video=null; rightStatus.textContent="Res: 624×624  FPS: --  REC: OFF"; }
+function startRender(){
+  lastFpsTime=performance.now(); frames=0;
+  const render=()=>{
+    if(!video) return;
+    const w=video.videoWidth,h=video.videoHeight;
+    if(w&&h){
+      ctx.save(); ctx.clearRect(0,0,624,624); ctx.translate(312,312);
+      ctx.scale(mirrorLR?-1:1, mirrorUD?-1:1);
+      ctx.rotate(rotateDeg*Math.PI/180); ctx.scale(zoom,zoom);
+      const vw=624,vh=624, scale=Math.max(vw/w,vh/h), dw=w*scale, dh=h*scale;
+      if(autoEnh.checked){
+        if(!window.off){ window.off=document.createElement('canvas'); window.offctx=window.off.getContext('2d'); }
+        window.off.width=dw; window.off.height=dh;
+        const gamma=parseInt(slGamma.value)/100.0;
+        const bright=(gamma>=1?1.0+(gamma-1)*0.8:1.0-(1-gamma)*0.5);
+        const fContrast=1.2+(parseInt(slSharp.value)/100)*0.4;
+        const fSaturate=1.0+(parseInt(slSat.value)/100);
+        window.offctx.filter=`contrast(${fContrast}) saturate(${fSaturate}) brightness(${bright})`;
+        window.offctx.drawImage(video,(0-(dw-vw)/2)/scale,(0-(dh-vh)/2)/scale,w,h,0,0,dw,dh);
+        ctx.drawImage(window.off,-vw/2,-vh/2,vw,vh);
+      }else{
+        ctx.drawImage(video,(0-(dw-vw)/2)/scale,(0-(dh-vh)/2)/scale,w,h,-vw/2,-vh/2,vw,vh);
+      }
+      if(recording&&recDotVisible){ ctx.fillStyle='#f00'; ctx.beginPath(); ctx.arc(vw/2-18,-vh/2+18,8,0,Math.PI*2); ctx.fill(); }
+      ctx.restore();
+      frames++; const now=performance.now();
+      if(now-lastFpsTime>=1000){ const fps=frames*1000/(now-lastFpsTime); rightStatus.textContent=`Res: 624×624  FPS: ${fps.toFixed(1)}  REC: ${recording?'ON':'OFF'}`; frames=0; lastFpsTime=now; }
+    }
+    animationId=requestAnimationFrame(render);
+  };
+  animationId=requestAnimationFrame(render);
+}
+function stopRender(){ if(animationId) cancelAnimationFrame(animationId); animationId=null; }
+function toggleMirrorLR(){ mirrorLR=!mirrorLR; }
+function toggleMirrorUD(){ mirrorUD=!mirrorUD; }
+function setRotateFixed(d){ rotateDeg=(parseInt(d)||0)%360; }
+function rotateMinus10(){ rotateDeg=(rotateDeg-10+360)%360; rotateFixed.value=rotateDeg; }
+function setZoom(v){ zoom=Math.max(1.0,Math.min(4.0,v)); zoomText.textContent=zoom.toFixed(2)+'x'; leftStatus.textContent=`Zoom ${zoom.toFixed(2)}x`; }
+function toastSaved(){ savedToast.style.display='block'; setTimeout(()=>savedToast.style.display='none',900); }
+function snapshot(){
+  canvas.toBlob(b=>{ if(!b) return;
+    const url=URL.createObjectURL(b);
+    const a=document.createElement('a'); a.href=url; a.download=`IMG_${new Date().toISOString().replace(/[:.]/g,'')}.png`; a.click();
+    thumb.src=url; toastSaved(); setTimeout(()=>URL.revokeObjectURL(url),8000);
+  },'image/png',0.92);
+}
+function startRecording(){
+  if(recording) return;
+  const recStream=canvas.captureStream(30); recordedChunks=[];
+  mediaRecorder=new MediaRecorder(recStream,{mimeType:'video/webm;codecs=vp9'});
+  mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop=()=>{ const blob=new Blob(recordedChunks,{type:'video/webm'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`VID_${new Date().toISOString().replace(/[:.]/g,'')}.webm`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),8000); };
+  mediaRecorder.start(); recording=true; btnRec.textContent='停止錄影 (F9)'; recBlinkTimer=setInterval(()=>{ recDotVisible=!recDotVisible; },500);
+}
+function stopRecording(){ if(!recording) return; mediaRecorder.stop(); clearInterval(recBlinkTimer); recBlinkTimer=null; recDotVisible=false; recording=false; btnRec.textContent='開始錄影 (F9)'; }
+function toggleRecording(){ recording?stopRecording():startRecording(); }
+
+btnRefresh.onclick=listDevices; btnOpen.onclick=openSelected; btnClose.onclick=closeStream;
+btnMirrorLR.onclick=toggleMirrorLR; btnMirrorUD.onclick=toggleMirrorUD;
+rotateFixed.onchange=e=>setRotateFixed(e.target.value);
+zoomSlider.oninput=e=>{ setZoom(parseInt(e.target.value)/100); };
+btnSnap.onclick=snapshot; btnRec.onclick=toggleRecording;
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='F9'){ e.preventDefault(); toggleRecording(); }
+  else if(e.code==='F10'){ e.preventDefault(); snapshot(); }
+  else if(e.code==='F11'){ e.preventDefault(); rotateMinus10(); }
+  else if(e.key==='+'){ setZoom(zoom+0.1); zoomSlider.value=Math.round(zoom*100); }
+  else if(e.key==='-'){ setZoom(zoom-0.1); zoomSlider.value=Math.round(zoom*100); }
+});
+
+(async()=>{ try{ await navigator.mediaDevices.getUserMedia({video:true}); }catch(e){} await listDevices(); setZoom(1.3); })();
+</script>
+</body>
+</html>
