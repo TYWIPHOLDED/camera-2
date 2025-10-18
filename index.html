@@ -1,402 +1,441 @@
-# Re-create the packaged web app and zip it.
-import os, zipfile, textwrap
-
-root = "/mnt/data/MediCamWeb_Pack_v1"
-os.makedirs(root, exist_ok=True)
-
-index_html = """<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>MediVisionTech Web OEM</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediVisionTech UI 模擬器</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 <style>
-:root{
-  --bg:#0b0b0b;
-  --fg:#eaeaea;
-  --muted:#9aa0a6;
-  --line:#222;
-  --card:#111;
-  --brand:#21c17a; /* apple green */
-  --dull:#2a2a2a;
-  --btn:#16a764;
-  --danger:#ff4d4d;
-}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
-.app{height:100%;display:grid;grid-template-rows:auto 1fr}
-.top{
-  display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:#0f0f0f;
-}
-.title{font-weight:700;letter-spacing:.5px;margin-right:10px}
-.select, .btn{
-  background:#0f0f0f;border:1px solid #2a2a2a;border-radius:10px;padding:8px 12px;color:var(--fg);
-}
-.btn{cursor:pointer;transition:.15s ease;user-select:none}
-.btn:hover{border-color:#3a3a3a}
-.btn.primary{background:var(--btn);border-color:var(--btn);color:#fff}
-.btn.ghost{background:#111}
-.btn.small{padding:6px 10px;border-radius:8px}
-.wrap{display:grid;grid-template-columns:72px 1fr 320px;gap:14px;padding:12px;height:100%}
-.toolbar{
-  display:flex;flex-direction:column;gap:12px;align-items:center;padding-top:10px;
-}
-.iconbtn{
-  width:56px;height:56px;border-radius:14px;border:1px solid #2a2a2a;display:grid;place-items:center;
-  background:#111;cursor:pointer;transition:.15s;user-select:none;
-}
-.iconbtn:hover{border-color:#3a3a3a}
-.iconbtn svg{width:28px;height:28px;fill:#e6e6e6}
-/* rotation slider */
-.sidecol{display:flex;flex-direction:column;align-items:center}
-.vslider{height:260px;display:flex;flex-direction:column;align-items:center;margin-top:8px}
-.vslider input{writing-mode:bt-lr;-webkit-appearance:slider-vertical; width:24px;height:220px}
-.vslider .lbl{font-size:12px;color:var(--muted);margin-top:6px}
-/* canvas */
-.stage{position:relative;display:grid;place-items:center}
-.box{position:relative;background:#000;border-radius:14px;overflow:hidden;border:1px solid #1d1d1d;max-width:90vh;aspect-ratio:1/1}
-canvas{display:block; width:100%; height:100%}
-.thumbbar{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:10px}
-.thumbbar .slot{width:68px;height:48px;border:1px solid #3a3a3a;border-radius:10px;background:#0e0e0e;overflow:hidden}
-.thumbbar img{width:100%;height:100%;object-fit:cover}
-.rec-dot{position:absolute;right:10px;top:10px;width:14px;height:14px;border-radius:20px;background:var(--danger);border:2px solid #fff;display:none}
-.toast{
-  position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
-  background:rgba(15,15,15,.9);padding:8px 12px;border:1px solid #2a2a2a;border-radius:10px;color:#ddd;display:none
-}
-@keyframes blink {0%,49%{opacity:1} 50%,100%{opacity:.15}}
-.rec-dot.blink{animation:blink .9s linear infinite}
-#recText{position:absolute;right:34px;top:10px;font-weight:800;color:#ff4d4d;display:none;letter-spacing:1px}
-/* right panel (actions + thumbnails) */
-.right{display:flex;flex-direction:column;gap:16px}
-.panel{
-  border:1px solid #222;border-radius:14px;padding:12px;background:#0f0f0f;
-}
-.actions{display:flex;flex-direction:column;gap:14px}
-.actionbtn{display:grid;place-items:center;border:1px solid #2a2a2a;border-radius:14px;background:#111;width:92px;height:88px;cursor:pointer}
-.actionbtn svg{width:36px;height:36px;fill:#e6e6e6}
-.kv{display:flex;align-items:center;gap:8px}
-.preset-bar{display:flex;flex-wrap:wrap;gap:8px}
-.preset-btn{border:1px solid #2f2f2f;border-radius:9px;background:#131313;color:#ddd;padding:6px 10px;cursor:pointer}
-.preset-btn.active{border-color:var(--brand);color:#d9ffe9;background:#11231b}
-.group{display:flex;flex-direction:column;gap:12px}
-.row{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center}
-.range{accent-color:var(--brand);width:100%}
-.small{font-size:12px;color:#a7a7a7}
-/* settings drawer */
-.drawer{position:fixed;right:0;top:56px;bottom:0;width:380px;background:#0f0f0f;border-left:1px solid #1f1f1f;padding:16px 16px 20px;transform:translateX(105%);transition:.2s ease;overflow:auto;z-index:15}
-.drawer.show{transform:translateX(0)}
-.closeX{position:fixed;right:16px;top:8px;z-index:16}
-.lang{min-width:220px}
-.badge{background:#193; color:#9f9; border:1px solid #295; font-size:11px; padding:2px 6px; border-radius:999px}
-.note{font-size:12px;color:#9aa0a6}
-/* utility */
-.hide{display:none}
-section h4{margin:8px 0 2px 0;font-size:13px;color:#bdbdbd}
+  html,body{height:100%}
+  body{display:grid;grid-template-rows:56px 1fr}
+  header{background:#0d0f12;color:#fff}
+  .brand{font-weight:700}
+  .shell{display:grid;grid-template-columns:260px 1fr 320px;gap:12px;padding:12px;height:100%;overflow:hidden;background:#111}
+  .panel{background:#171a1f;border:1px solid #28303a;border-radius:12px;color:#eef;display:flex;flex-direction:column;min-height:0}
+  .panel h6{padding:10px 12px;margin:0;border-bottom:1px solid #28303a;color:#b9c4d0}
+  .left, .right {overflow:auto}
+  .canvas-wrap{display:grid;place-items:center;overflow:hidden}
+  .canvas{
+    position:relative;
+    width:1220px;height:680px;
+    background:#0a0d10;border:1px solid #28303a;border-radius:16px;
+    box-shadow:0 10px 40px rgba(0,0,0,.4);
+  }
+  .ghost{position:absolute;left:0;top:0;right:0;bottom:0;border-radius:16px;background:
+    linear-gradient(transparent 39px, #1e232c 40px),
+    linear-gradient(90deg, transparent 39px, #1e232c 40px);
+    background-size:40px 40px;
+    opacity:.25;pointer-events:none
+  }
+  /* 可拖拉元件 */
+  .node{
+    position:absolute;user-select:none;
+    background:#1c222b;border:1px solid #3a4454;border-radius:12px;color:#fff;
+    display:flex;align-items:center;justify-content:center;padding:8px;
+  }
+  .node.selected{outline:2px solid #4caf50}
+  .handle{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:#4caf50;border-radius:3px}
+  .node .bi{pointer-events:none}
+
+  /* palette item */
+  .item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #28303a;cursor:pointer}
+  .item:hover{background:#202633}
+  .item .bi{width:22px;text-align:center}
+
+  /* 屬性表單 */
+  .form-control, .form-select{background:#111820;color:#cfe;border-color:#314154}
+  .form-control:focus, .form-select:focus{box-shadow:none;border-color:#4caf50}
+  .btn-ghost{background:#111820;color:#cfe;border:1px solid #314154}
+  .btn-ghost:hover{background:#18212b}
+
+  /* 預覽遮罩 */
+  .preview-mask{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000}
+  .preview{width:min(92vw,1400px);height:min(90vh,820px);background:#0a0d10;border:1px solid #28303a;border-radius:16px;overflow:auto}
+  .preview-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #28303a;color:#cfe}
+  .preview-body{padding:12px}
+  .code{white-space:pre; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px;color:#cfe;background:#0e131a;border:1px solid #28303a;border-radius:10px;padding:12px}
 </style>
 </head>
 <body>
-<div class="app">
-  <div class="top">
-    <div class="title">MediVisionTech</div>
-    <select id="selLang" class="select lang">
-      <option value="en">English</option>
-      <option value="zh">繁體中文</option>
-    </select>
-    <div style="flex:1"></div>
-    <label class="kv">
-      <span id="lblSelCam">Select camera</span>
-      <select id="selCam" class="select"></select>
+<header class="px-3 d-flex align-items-center justify-content-between">
+  <div class="brand">MediVisionTech – 拖拉式 UI 模擬器</div>
+  <div class="d-flex gap-2">
+    <button id="btn_export" class="btn btn-success btn-sm"><i class="bi bi-download"></i> 匯出 JSON</button>
+    <label class="btn btn-ghost btn-sm m-0">
+      <i class="bi bi-upload"></i> 匯入 JSON <input id="file_import" type="file" accept="application/json" hidden>
     </label>
-    <button id="btnFind" class="btn small" title="Rescan">Find device</button>
-    <button id="btnSettings" class="btn small">Settings</button>
+    <button id="btn_preview" class="btn btn-primary btn-sm"><i class="bi bi-eye"></i> 預覽/取 HTML</button>
+    <button id="btn_clear" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> 清空畫布</button>
   </div>
+</header>
 
-  <div class="wrap">
-    <!-- left tool rail -->
-    <div class="sidecol">
-      <div class="toolbar">
-        <div class="iconbtn" id="btnRotL" title="Rotate -10°">
-          <svg viewBox="0 0 24 24"><path d="M15.55 5.55C14.5 4.5 13.11 4 11.66 4c-3.04 0-5.5 2.46-5.5 5.5S8.62 15 11.66 15c2.73 0 5-1.97 5.41-4.55h-1.52c-.4 1.72-1.96 3-3.89 3-2.21 0-4-1.79-4-4s1.79-4 4-4c1.1 0 2.1.45 2.83 1.17L12.16 9H18V3.16l-2.45 2.39z"/></svg>
-        </div>
-        <div class="iconbtn" id="btnRotR" title="Rotate +10°">
-          <svg viewBox="0 0 24 24"><path d="M8.45 5.55 6 3.16V9h5.84L9.51 6.72A3.972 3.972 0 0 1 12.34 5c2.21 0 4 1.79 4 4s-1.79 4-4 4c-1.93 0-3.49-1.28-3.89-3H6.93c.41 2.58 2.68 4.55 5.41 4.55 3.04 0 5.5-2.46 5.5-5.5S15.38 4 12.34 4c-1.45 0-2.84.5-3.89 1.55z"/></svg>
-        </div>
-        <div class="iconbtn" id="btnFlipH" title="Mirror L/R">
-          <svg viewBox="0 0 24 24"><path d="M7 3h3v18H7V3zm7 0h3v18h-3V3zM4 3h2v18H4V3zm12 0h4v18h-4V3z"/></svg>
-        </div>
-        <div class="iconbtn" id="btnFlipV" title="Mirror U/D">
-          <svg viewBox="0 0 24 24"><path d="M3 7h18v3H3V7zm0 7h18v3H3v-3zM3 4h18v2H3V4zm0 12h18v4H3v-4z"/></svg>
-        </div>
-        <div class="iconbtn" id="btnReset" title="Reset">
-          <svg viewBox="0 0 24 24"><path d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 0 1-5 5 5 5 0 0 1-4.9-4h-2.1A7.1 7.1 0 0 0 12 22c3.87 0 7-3.13 7-7s-3.13-7-7-7z"/></svg>
-        </div>
-      </div>
-      <div class="vslider">
-        <input id="rotFine" type="range" min="-180" max="180" step="1" value="0" orient="vertical"/>
-        <div class="lbl" id="lblRot">Rotation 0°</div>
-      </div>
-    </div>
+<div class="shell">
+  <!-- 左：元件庫 -->
+  <div class="panel left">
+    <h6>元件庫</h6>
+    <div class="item" data-type="button"><i class="bi bi-square"></i><span>按鈕（文字）</span></div>
+    <div class="item" data-type="iconbtn"><i class="bi bi-camera"></i><span>圖示按鈕</span></div>
+    <div class="item" data-type="slider"><i class="bi bi-sliders"></i><span>滑桿</span></div>
+    <div class="item" data-type="toggle"><i class="bi bi-toggle-on"></i><span>切換鍵</span></div>
+    <div class="item" data-type="label"><i class="bi bi-fonts"></i><span>標籤</span></div>
+    <div class="item" data-type="panel"><i class="bi bi-layout-sidebar-inset"></i><span>面板（容器）</span></div>
+    <div class="item" data-type="video"><i class="bi bi-camera-video"></i><span>影像區（相機佔位）</span></div>
 
-    <!-- stage -->
-    <div class="stage">
-      <div class="box" id="box">
-        <video id="video" autoplay playsinline muted class="hide"></video>
-        <canvas id="cv"></canvas>
-        <div class="rec-dot" id="recDot"></div>
-        <div id="recText">REC</div>
-        <div class="thumbbar" id="thumbbar">
-          <div class="slot" id="shot1"></div>
-          <div class="slot" id="shot2"></div>
-          <div class="slot" id="shot3"></div>
-        </div>
-        <div class="toast" id="toast">Saved</div>
-      </div>
-    </div>
-
-    <!-- right -->
-    <div class="right">
-      <div class="panel">
-        <div class="actions">
-          <div class="actionbtn" id="btnSnap" title="拍照">
-            <svg viewBox="0 0 24 24"><path d="M20 5h-3.17l-1.84-2H9.01L7.17 5H4c-1.11 0-2 .89-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7c0-1.11-.89-2-2-2zm-8 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
-          </div>
-          <div class="actionbtn" id="btnRec" title="錄影 / 停止">
-            <svg id="iconRec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="#ff2d2d"/></svg>
-          </div>
-          <div class="actionbtn" id="btnSettings2" title="設定">
-            <svg viewBox="0 0 24 24"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.05-1.6a.5.5,0,0,0,.12-.64l-1.94-3.36a.5.5,0,0,0-.6-.22l-2.4,1a5.19,5.19,0,0,0-1.64-.95l-.36-2.54A.5.5,0,0,0,13.92,2H10.08a.5.5,0,0,0-.49.41L9.23,5a5.19,5.19,0,0,0-1.64.95l-2.4-1a.5.5,0,0,0-.6.22L2.65,8.53a.5.5,0,0,0,.12.64l2.05,1.6a4.08,4.08,0,0,0,0,1.88l-2.05,1.6a.5.5,0,0,0-.12.64l1.94,3.36a.5.5,0,0,0,.6.22l2.4-1a5.19,5.19,0,0,0,1.64.95l.36,2.54a.5.5,0,0,0,.49.41h3.84a.5.5,0,0,0,.49-.41l.36-2.54a5.19,5.19,0,0,0,1.64-.95l2.4,1a.5.5,0,0,0,.6-.22l1.94-3.36a.5.5,0,0,0-.12-.64Zm-7.14,2.56A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="small" id="lblLatest">Latest shots</div>
-        <div class="thumbbar" id="thumbCol"></div>
-      </div>
+    <div class="p-2 small text-secondary">
+      提示：點元件即可加入畫布；在畫布上可拖曳與由右下角縮放。<br>
+      點選元件後，在右側可修改屬性。
     </div>
   </div>
 
-  <!-- settings drawer -->
-  <button class="btn small closeX" id="btnCloseDrawer">✕</button>
-  <div class="drawer" id="drawer">
-    <div class="group">
-      <div class="row"><h3 style="margin:0">設定 <span class="badge">FULL</span></h3></div>
+  <!-- 中：畫布 -->
+  <div class="panel canvas-wrap">
+    <h6 class="w-100">畫布（固定尺寸，最終會對齊你的醫療 UI）</h6>
+    <div id="canvas" class="canvas">
+      <div class="ghost"></div>
     </div>
+  </div>
 
-    <!-- 近拍與重置 -->
-    <div class="group">
-      <div class="row" style="grid-template-columns:130px auto;">
-        <label>近拍模式（8mm）</label>
-        <label style="display:flex;align-items:center;gap:10px;">
-          <input id="chkMacro" type="checkbox">
-          <span class="small">自動調校亮度 / Gamma / 邊緣強化（防閃爍）</span>
-        </label>
-      </div>
-      <div class="row" style="grid-template-columns:130px auto;">
-        <label>相機自動控制</label>
-        <div class="small" id="capInfo">嘗試啟用相機的 auto-exposure / auto-focus…</div>
-      </div>
-      <div class="row" style="grid-template-columns:130px auto;">
-        <label>重置設定</label>
-        <button class="preset-btn" id="btnResetAll">重置為預設</button>
+  <!-- 右：屬性/文件 -->
+  <div class="panel right">
+    <h6>屬性</h6>
+    <div class="p-3" id="prop">
+      <div class="text-secondary">請先從畫布選擇一個元件。</div>
+    </div>
+    <h6>專案</h6>
+    <div class="p-3">
+      <button class="btn btn-ghost btn-sm" id="btn_save_local"><i class="bi bi-save2"></i> 儲存到瀏覽器</button>
+      <button class="btn btn-ghost btn-sm" id="btn_load_local"><i class="bi bi-folder2-open"></i> 從瀏覽器讀取</button>
+    </div>
+  </div>
+</div>
+
+<!-- 預覽輸出 -->
+<div class="preview-mask" id="mask">
+  <div class="preview">
+    <div class="preview-header">
+      <div>預覽 / 產生 HTML</div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-ghost btn-sm" id="btn_copy_html"><i class="bi bi-clipboard"></i> 複製 HTML</button>
+        <button class="btn btn-ghost btn-sm" id="btn_close_preview"><i class="bi bi-x-lg"></i> 關閉</button>
       </div>
     </div>
-
-    <section>
-      <h4>影像參數</h4>
-      <div class="group">
-        <div class="row"><label id="lbBri">亮度</label><input id="sBright" type="range" min="50" max="150" value="110" class="range"></div>
-        <div class="row"><label id="lbCon">對比度</label><input id="sContrast" type="range" min="50" max="160" value="120" class="range"></div>
-        <div class="row"><label id="lbSat">飽和度</label><input id="sSat" type="range" min="70" max="160" value="110" class="range"></div>
-        <div class="row"><label id="lbSha">銳利度</label><input id="sSharp" type="range" min="10" max="60" value="30" class="range"></div>
-        <div class="row"><label>Gamma</label><input id="sGamma" type="range" min="80" max="140" value="120" class="range"></div>
-      </div>
-    </section>
-
-    <section>
-      <h4>我的預設</h4>
-      <div class="group" id="presetArea">
-        <div class="row" style="grid-template-columns:100px 1fr;">
-          <label>清單</label>
-          <div id="presetList" class="preset-bar"></div>
-        </div>
-        <div class="row" style="grid-template-columns:100px 1fr;">
-          <label>管理</label>
-          <div class="preset-bar">
-            <button class="preset-btn" id="btnAddPreset">新增預設</button>
-            <button class="preset-btn" id="btnSaveOver">儲存到選中</button>
-            <button class="preset-btn" id="btnRename">重新命名</button>
-            <button class="preset-btn" id="btnDelete">刪除</button>
-          </div>
-        </div>
-        <div class="note">預設保存在瀏覽器（localStorage）。</div>
-      </div>
-    </section>
+    <div class="preview-body">
+      <div class="mb-2 small text-secondary">這是純前端版面（無功能），我會用你匯出的 JSON 把功能線路接上。</div>
+      <div id="html_out" class="code"></div>
+    </div>
   </div>
 </div>
 
 <script>
-const T = {
-  en:{select:'Select camera', find:'Find device', settings:'Settings', latest:'Latest shots', rotation:'Rotation', saved:'Saved'},
-  zh:{select:'選擇鏡頭', find:'重新掃描', settings:'設定', latest:'最近的截圖', rotation:'旋轉', saved:'已儲存'}
-};
-function applyLang(){
-  const lang = selLang.value;
-  document.getElementById('lblSelCam').textContent = T[lang].select;
-  document.getElementById('lblLatest').textContent = T[lang].latest;
-  document.getElementById('lblRot').textContent = T[lang].rotation + ' ' + rotFine.value + '°';
-  btnFind.textContent = T[lang].find;
-  btnSettings.textContent = T[lang].settings;
-}
-const selLang = document.getElementById('selLang'); selLang.onchange = applyLang;
+  // ====== 簡單 ID 生成 ======
+  const uid = ()=>'n'+Math.random().toString(36).slice(2,8);
+  const canvas = document.getElementById('canvas');
+  const prop   = document.getElementById('prop');
+  let current = null; // 目前選取的 node
 
-const video=document.getElementById('video'), cv=document.getElementById('cv'), ctx=cv.getContext('2d',{willReadFrequently:true});
-const recDot=document.getElementById('recDot'), recText=document.getElementById('recText'), iconRec=document.getElementById('iconRec');
-const btnRec=document.getElementById('btnRec'), btnSnap=document.getElementById('btnSnap'), btnSettings=document.getElementById('btnSettings'), btnSettings2=document.getElementById('btnSettings2');
-const drawer=document.getElementById('drawer'), btnCloseDrawer=document.getElementById('btnCloseDrawer');
-const selCam=document.getElementById('selCam'), btnFind=document.getElementById('btnFind'), toast=document.getElementById('toast');
-const rotFine=document.getElementById('rotFine'), thumbCol=document.getElementById('thumbCol'), thumbbar=document.getElementById('thumbbar');
-const sBright= document.getElementById('sBright'), sContrast=document.getElementById('sContrast'), sSat=document.getElementById('sSat'), sSharp=document.getElementById('sSharp'), sGamma=document.getElementById('sGamma'), chkMacro=document.getElementById('chkMacro');
-const btnRotL=document.getElementById('btnRotL'), btnRotR=document.getElementById('btnRotR'), btnFlipH=document.getElementById('btnFlipH'), btnFlipV=document.getElementById('btnFlipV'), btnReset=document.getElementById('btnReset');
-
-let stream=null, recorder=null, chunks=[], recording=false;
-let angle=0, flipH=1, flipV=1;
-let autoQEnabled=false, emaY=0.5;
-const targetY=0.55, deadband=0.03, stepB=0.003, stepG=0.002;
-const tmpCv=document.createElement('canvas'); tmpCv.width=64; tmpCv.height=64;
-const tmpCtx=tmpCv.getContext('2d',{ willReadFrequently:true });
-
-async function listCams(){
-  const devices=await navigator.mediaDevices.enumerateDevices();
-  const cams=devices.filter(d=>d.kind==='videoinput');
-  selCam.innerHTML=cams.map((d,i)=>`<option value="${d.deviceId}">${d.label||('Camera '+(i+1))}</option>`).join('');
-  if(!cams.length) alert('找不到鏡頭');
-}
-async function openCam(deviceId){
-  try{
-    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-    stream=await navigator.mediaDevices.getUserMedia({
-      video: deviceId?{deviceId:{exact:deviceId}}:{width:{ideal:1280},height:{ideal:720}},
-      audio:false
+  // ====== palette → add node ======
+  document.querySelectorAll('.item').forEach(it=>{
+    it.addEventListener('click', ()=>{
+      const type = it.dataset.type;
+      addNode(type, 60, 60, 160, 56);
     });
-    video.srcObject=stream; await video.play(); resizeCanvas(); await enableNativeAutoControls();
-  }catch(e){ console.error(e); alert('開啟鏡頭失敗'); }
-}
-btnFind.onclick=async()=>{ await listCams(); if(selCam.value) openCam(selCam.value); };
-selCam.onchange=()=> openCam(selCam.value);
+  });
 
-async function enableNativeAutoControls(){
-  try{
-    if(!stream) return;
-    const track=stream.getVideoTracks()[0]; const caps=track.getCapabilities?.()||{}; const cons={};
-    if(caps.exposureMode && caps.exposureMode.includes('continuous')) cons.advanced=[{exposureMode:'continuous'}];
-    if(caps.focusMode && caps.focusMode.includes('continuous')) cons.advanced=[...(cons.advanced||[]),{focusMode:'continuous'}];
-    if(Object.keys(cons).length) await track.applyConstraints(cons);
-    const msg=[];
-    if(cons.advanced?.some(x=>x.exposureMode==='continuous')) msg.push('AE');
-    if(cons.advanced?.some(x=>x.focusMode==='continuous')) msg.push('AF');
-    document.getElementById('capInfo').textContent= msg.length?('相機原生已啟用：'+msg.join(' / ')):'相機無原生 AE/AF，將以軟體補償';
-  }catch(e){ document.getElementById('capInfo').textContent='相機控制不支援，使用軟體補償'; }
-}
+  // ====== 建立節點 ======
+  function addNode(type, x, y, w, h, opts={}){
+    const el = document.createElement('div');
+    el.className = 'node';
+    el.dataset.type = type;
+    el.dataset.id = opts.id || uid();
+    el.style.left = (opts.x ?? x)+'px';
+    el.style.top  = (opts.y ?? y)+'px';
+    el.style.width  = (opts.w ?? w)+'px';
+    el.style.height = (opts.h ?? h)+'px';
 
-function resizeCanvas(){ const box=document.getElementById('box'); cv.width=box.clientWidth; cv.height=box.clientHeight; }
-window.addEventListener('resize', resizeCanvas);
+    // 內容
+    el.innerHTML = renderInner(type, opts);
 
-function draw(){
-  if(!video.videoWidth){ requestAnimationFrame(draw); return; }
-  const w=cv.width,h=cv.height; ctx.save(); ctx.clearRect(0,0,w,h);
-  ctx.translate(w/2,h/2); ctx.scale(flipH,flipV); ctx.rotate(angle*Math.PI/180);
-  const vw=video.videoWidth,vh=video.videoHeight, scale=Math.min(w/vw,h/vh);
-  const dw=vw*scale, dh=vh*scale; ctx.drawImage(video,-dw/2,-dh/2,dw,dh); ctx.restore();
+    // resize handle
+    const handle = document.createElement('div');
+    handle.className = 'handle';
+    el.appendChild(handle);
 
-  // image adjustments
-  const b=+sBright.value/100, c=+sContrast.value/100, g=+sGamma.value/100, sh=+sSharp.value/100, sat=+sSat.value/100;
-  let img=ctx.getImageData(0,0,w,h), d=img.data;
-  for(let i=0;i<d.length;i+=4){
-    d[i]=Math.min(255,Math.pow(d[i]/255,1/g)*255);
-    d[i+1]=Math.min(255,Math.pow(d[i+1]/255,1/g)*255);
-    d[i+2]=Math.min(255,Math.pow(d[i+2]/255,1/g)*255);
-    d[i]=Math.min(255,Math.max(0,(d[i]-128)*c+128*b));
-    d[i+1]=Math.min(255,Math.max(0,(d[i+1]-128)*c+128*b));
-    d[i+2]=Math.min(255,Math.max(0,(d[i+2]-128)*c+128*b));
-    const r=d[i], gg=d[i+1], bb=d[i+2], y=0.2126*r+0.7152*gg+0.0722*bb;
-    d[i]=Math.min(255,y+(r-y)*sat); d[i+1]=Math.min(255,y+(gg-y)*sat); d[i+2]=Math.min(255,y+(bb-y)*sat);
+    // 選取
+    el.addEventListener('pointerdown', (e)=>{
+      select(el); e.stopPropagation();
+    });
+
+    canvas.appendChild(el);
+    makeInteract(el);
+    select(el);
   }
-  ctx.putImageData(img,0,0);
-  autoQualityTick();
-  requestAnimationFrame(draw);
-}
-requestAnimationFrame(draw);
 
-chkMacro.onchange=()=> autoQEnabled=chkMacro.checked;
-function autoQualityTick(){
-  if(!autoQEnabled || !video || !video.videoWidth) return;
-  tmpCtx.drawImage(video,0,0,tmpCv.width,tmpCv.height);
-  const id=tmpCtx.getImageData(0,0,tmpCv.width,tmpCv.height).data; let sum=0;
-  for(let i=0;i<id.length;i+=4){ sum += (0.2126*id[i]+0.7152*id[i+1]+0.0722*id[i+2])/255; }
-  const mean=sum/(tmpCv.width*tmpCv.height); emaY=emaY*0.85+mean*0.15; const err=0.55-emaY;
-  if(Math.abs(err)>0.03){
-    const dir=Math.sign(err);
-    const b=+sBright.value/100,g=+sGamma.value/100,c=+sContrast.value/100,sh=+sSharp.value/100;
-    sBright.value=Math.round(Math.min(1.50,Math.max(0.70,b+dir*0.003))*100);
-    sGamma.value=Math.round(Math.min(1.40,Math.max(0.80,g-dir*0.002))*100);
-    sContrast.value=Math.round(Math.min(1.60,Math.max(0.80,c+dir*0.0024))*100);
-    sSharp.value=Math.round(Math.min(0.60,Math.max(0.10,sh+dir*0.0012))*100);
+  function renderInner(type, opts){
+    const txt = opts.text ?? ({
+      button:'按鈕', iconbtn:'', slider:'', toggle:'OFF', label:'標籤',
+      panel:'', video:''
+    }[type] || '');
+    const icon = opts.icon ?? 'bi-camera';
+    const bg   = opts.bg   ?? '';
+    const fg   = opts.fg   ?? '';
+    const bd   = opts.bd   ?? '';
+
+    const style = `style="${bg?`background:${bg};`:''}${fg?`color:${fg};`:''}${bd?`border-color:${bd};`:''}"`;
+
+    if(type==='button') return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center">${txt}</div>`;
+    if(type==='iconbtn')return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center"><i class="bi ${icon} fs-4"></i></div>`;
+    if(type==='slider') return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center"><div class="w-75"><input type="range" class="form-range"></div></div>`;
+    if(type==='toggle') return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center">${txt}</div>`;
+    if(type==='label')  return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center">${txt}</div>`;
+    if(type==='panel')  return `<div ${style} class="w-100 h-100"></div>`;
+    if(type==='video')  return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center"><i class="bi bi-camera-video fs-2 text-secondary"></i></div>`;
+    return txt;
   }
-}
 
-btnSettings.onclick=()=>drawer.classList.add('show');
-btnSettings2.onclick=()=>drawer.classList.add('show');
-btnCloseDrawer.onclick=()=>drawer.classList.remove('show');
-btnRotL.onclick=()=>{angle=(angle-10+360)%360;};
-btnRotR.onclick=()=>{angle=(angle+10)%360;};
-btnFlipH.onclick=()=>{flipH*=-1;};
-btnFlipV.onclick=()=>{flipV*=-1;};
-btnReset.onclick=()=>{angle=0;flipH=1;flipV=1;rotFine.value=0;document.getElementById('lblRot').textContent=T[selLang.value].rotation+' 0°'; sBright.value=110;sContrast.value=120;sSat.value=110;sSharp.value=30;sGamma.value=120;};
-rotFine.oninput=()=>{angle=+rotFine.value;document.getElementById('lblRot').textContent=T[selLang.value].rotation+' '+angle+'°';};
-
-function toastOnce(msg){ toast.textContent=msg||T[selLang.value].saved; toast.style.display='block'; setTimeout(()=>toast.style.display='none',1200); }
-btnSnap.onclick=()=>{
-  const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=`IMG_${Date.now()}.png`; a.click();
-  const img=new Image(); img.src=a.href; const slot=document.createElement('div'); slot.className='slot'; slot.appendChild(img); thumbCol.prepend(slot);
-  const bslot=document.createElement('div'); bslot.className='slot'; const i2=new Image(); i2.src=a.href; bslot.appendChild(i2); thumbbar.prepend(bslot); while(thumbbar.children.length>3) thumbbar.removeChild(thumbbar.lastChild);
-  toastOnce('已儲存截圖');
-};
-let recBlinkTimer=null;
-btnRec.onclick=()=>{
-  if(recording){ recorder.stop(); recording=false; clearInterval(recBlinkTimer); recBlinkTimer=null; recDot.style.display='none'; recDot.classList.remove('blink'); recText.style.display='none'; recText.classList.remove('blink'); iconRec.innerHTML='<circle cx=\"12\" cy=\"12\" r=\"6\" fill=\"#ff2d2d\"/>'; }
-  else{
-    const s=cv.captureStream(30); recorder=new MediaRecorder(s,{mimeType:'video/webm;codecs=vp9'}); chunks=[];
-    recorder.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
-    recorder.onstop=()=>{ const blob=new Blob(chunks,{type:'video/webm'}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`VID_${Date.now()}.webm`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),6000); toastOnce('已儲存影片'); };
-    recorder.start(); recording=true; iconRec.innerHTML='<rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" fill=\"#e6e6e6\" rx=\"1\"/>'; recDot.style.display='block'; recText.style.display='block'; recBlinkTimer=setInterval(()=>{recDot.classList.toggle('blink'); recText.classList.toggle('blink');},900);
+  // ====== interact.js：拖曳+縮放 ======
+  function makeInteract(el){
+    interact(el).draggable({
+      listeners:{
+        move(ev){
+          const x = (parseFloat(el.style.left)||0)+ev.dx;
+          const y = (parseFloat(el.style.top)||0)+ev.dy;
+          el.style.left = Math.max(0, Math.min(canvas.clientWidth - el.clientWidth, x))+'px';
+          el.style.top  = Math.max(0, Math.min(canvas.clientHeight- el.clientHeight,y))+'px';
+        }
+      }
+    }).resizable({
+      edges:{bottom:true, right:true},
+      listeners:{
+        move (ev) {
+          let {width, height} = ev.rect;
+          width = Math.max(40, Math.min(canvas.clientWidth - el.offsetLeft, width));
+          height= Math.max(32, Math.min(canvas.clientHeight- el.offsetTop, height));
+          el.style.width = width + 'px';
+          el.style.height= height+ 'px';
+        }
+      }
+    });
   }
-};
 
-// presets
-const PRESET_KEY='presets_named'; let presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'[]'); const presetList=document.getElementById('presetList'); let selectedPresetId=null;
-function readCurrentVals(){return {bright:+sBright.value,contrast:+sContrast.value,sat:+sSat.value,sharp:+sSharp.value,gamma:+sGamma.value};}
-function writeVals(v){ if(!v) return; sBright.value=v.bright; sContrast.value=v.contrast; sSat.value=v.sat; sSharp.value=v.sharp; sGamma.value=v.gamma; }
-function renderPresetChips(){ presetList.innerHTML=''; presets.forEach(p=>{ const b=document.createElement('button'); b.className='preset-btn'+(p.id===selectedPresetId?' active':''); b.textContent=p.name; b.onclick=()=>{selectedPresetId=p.id; writeVals(p.vals); renderPresetChips();}; presetList.appendChild(b); }); }
-function savePresets(){ localStorage.setItem(PRESET_KEY, JSON.stringify(presets)); }
-document.getElementById('btnAddPreset').onclick=()=>{ const name=prompt('預設名稱：','我的預設'); if(!name) return; const id=Date.now(); presets.push({id,name,vals:readCurrentVals()}); selectedPresetId=id; savePresets(); renderPresetChips(); };
-document.getElementById('btnSaveOver').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設'); return;} const p=presets.find(x=>x.id===selectedPresetId); p.vals=readCurrentVals(); savePresets(); toastOnce('已儲存到選中預設'); };
-document.getElementById('btnRename').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設'); return;} const p=presets.find(x=>x.id===selectedPresetId); const name=prompt('新的名稱：',p.name); if(!name) return; p.name=name; savePresets(); renderPresetChips(); };
-document.getElementById('btnDelete').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設'); return;} presets=presets.filter(x=>x.id!==selectedPresetId); selectedPresetId=null; savePresets(); renderPresetChips(); };
-document.getElementById('btnResetAll').onclick=()=>{ sBright.value=110; sContrast.value=120; sSat.value=110; sSharp.value=30; sGamma.value=120; };
+  // ====== 選取 + 屬性面板 ======
+  canvas.addEventListener('pointerdown', ()=>select(null));
+  function select(el){
+    if(current) current.classList.remove('selected');
+    current = el;
+    if(el) el.classList.add('selected');
+    renderProp(el);
+  }
 
-(async function boot(){ applyLang(); await listCams(); if(selCam.value) await openCam(selCam.value); renderPresetChips(); })();
+  function nodeData(el){
+    return {
+      id: el.dataset.id,
+      type: el.dataset.type,
+      x: parseInt(el.style.left||0),
+      y: parseInt(el.style.top||0),
+      w: parseInt(el.style.width||0),
+      h: parseInt(el.style.height||0),
+      // 額外屬性（從子內容抓）
+      text: el.querySelector('.w-100')?.innerText ?? '',
+      icon: (el.querySelector('.bi')?.className || '').split(' ').find(c=>c.startsWith('bi-')) || '',
+      bg: el.querySelector('.w-100')?.style.background || '',
+      fg: el.querySelector('.w-100')?.style.color || '',
+      bd: el.querySelector('.w-100')?.style.borderColor || ''
+    }
+  }
+
+  function renderProp(el){
+    if(!el){ prop.innerHTML = '<div class="text-secondary">請從畫布選擇一個元件。</div>'; return; }
+    const d = nodeData(el);
+    prop.innerHTML = `
+      <div class="mb-2">
+        <label class="form-label">ID</label>
+        <input id="p_id" class="form-control form-control-sm" value="${d.id}">
+      </div>
+      <div class="mb-2">
+        <label class="form-label">類型</label>
+        <input class="form-control form-control-sm" value="${d.type}" disabled>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">文字</label>
+        <input id="p_text" class="form-control form-control-sm" value="${d.text}">
+      </div>
+      <div class="mb-2">
+        <label class="form-label">圖示（Bootstrap Icons，例如 bi-camera ）</label>
+        <input id="p_icon" class="form-control form-control-sm" value="${d.icon}">
+      </div>
+      <div class="row g-2">
+        <div class="col-4">
+          <label class="form-label">背景色</label>
+          <input id="p_bg" type="color" class="form-control form-control-color" value="${cssColor(d.bg) || '#1c222b'}">
+        </div>
+        <div class="col-4">
+          <label class="form-label">字色</label>
+          <input id="p_fg" type="color" class="form-control form-control-color" value="${cssColor(d.fg) || '#ffffff'}">
+        </div>
+        <div class="col-4">
+          <label class="form-label">邊框色</label>
+          <input id="p_bd" type="color" class="form-control form-control-color" value="${cssColor(d.bd) || '#3a4454'}">
+        </div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-6">
+          <label class="form-label">X</label>
+          <input id="p_x" type="number" class="form-control form-control-sm" value="${d.x}">
+        </div>
+        <div class="col-6">
+          <label class="form-label">Y</label>
+          <input id="p_y" type="number" class="form-control form-control-sm" value="${d.y}">
+        </div>
+        <div class="col-6 mt-2">
+          <label class="form-label">寬</label>
+          <input id="p_w" type="number" class="form-control form-control-sm" value="${d.w}">
+        </div>
+        <div class="col-6 mt-2">
+          <label class="form-label">高</label>
+          <input id="p_h" type="number" class="form-control form-control-sm" value="${d.h}">
+        </div>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <button id="p_apply" class="btn btn-ghost btn-sm"><i class="bi bi-check2"></i> 套用</button>
+        <button id="p_delete" class="btn btn-ghost btn-sm"><i class="bi bi-x-lg"></i> 刪除</button>
+      </div>
+    `;
+
+    // 綁定
+    document.getElementById('p_apply').onclick = ()=>{
+      const id = document.getElementById('p_id').value.trim();
+      el.dataset.id = id || el.dataset.id;
+      el.style.left = (parseInt(document.getElementById('p_x').value)||0)+'px';
+      el.style.top  = (parseInt(document.getElementById('p_y').value)||0)+'px';
+      el.style.width= (parseInt(document.getElementById('p_w').value)||100)+'px';
+      el.style.height=(parseInt(document.getElementById('p_h').value)||40)+'px';
+
+      const text = document.getElementById('p_text').value;
+      const icon = document.getElementById('p_icon').value || '';
+      const bg   = document.getElementById('p_bg').value;
+      const fg   = document.getElementById('p_fg').value;
+      const bd   = document.getElementById('p_bd').value;
+
+      // 重新渲染子內容
+      const data = nodeData(el);
+      data.text = text; data.icon = icon; data.bg=bg; data.fg=fg; data.bd=bd;
+      el.innerHTML = renderInner(el.dataset.type, data)+'<div class="handle"></div>';
+    };
+
+    document.getElementById('p_delete').onclick = ()=>{
+      el.remove(); select(null);
+    };
+  }
+
+  function cssColor(v){
+    if(!v) return '';
+    const m = v.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
+    if(m){ // 轉 hex
+      const toHex = n => ('0'+parseInt(n).toString(16)).slice(-2);
+      return '#'+toHex(m[1])+toHex(m[2])+toHex(m[3]);
+    }
+    return v.startsWith('#')?v:'#1c222b';
+  }
+
+  // ====== 匯出 / 匯入 ======
+  function exportJSON(){
+    const arr = [...canvas.querySelectorAll('.node')].map(nodeData);
+    return { meta:{w:canvas.clientWidth,h:canvas.clientHeight,ts:Date.now()}, nodes:arr };
+  }
+  function importJSON(obj){
+    canvas.querySelectorAll('.node').forEach(n=>n.remove());
+    (obj.nodes||[]).forEach(n=> addNode(n.type, n.x, n.y, n.w, n.h, n));
+  }
+
+  document.getElementById('btn_export').onclick = ()=>{
+    const data = exportJSON();
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ui-layout.json';
+    a.click();
+  };
+
+  document.getElementById('file_import').onchange = async(e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const txt = await f.text();
+    importJSON(JSON.parse(txt));
+  };
+
+  // localStorage
+  document.getElementById('btn_save_local').onclick = ()=>{
+    localStorage.setItem('medi_ui_layout', JSON.stringify(exportJSON()));
+    alert('已存到瀏覽器。');
+  };
+  document.getElementById('btn_load_local').onclick = ()=>{
+    const txt = localStorage.getItem('medi_ui_layout');
+    if(!txt) return alert('找不到已儲存的資料。');
+    importJSON(JSON.parse(txt));
+  };
+
+  document.getElementById('btn_clear').onclick = ()=>{
+    if(confirm('清空畫布？')){ canvas.querySelectorAll('.node').forEach(n=>n.remove()); select(null); }
+  };
+
+  // ====== 預覽 / 產生 HTML ======
+  const mask = document.getElementById('mask');
+  const out  = document.getElementById('html_out');
+  document.getElementById('btn_preview').onclick = ()=>{
+    const data = exportJSON();
+    out.textContent = generateHTML(data);
+    mask.style.display='flex';
+  };
+  document.getElementById('btn_close_preview').onclick = ()=> mask.style.display='none';
+  document.getElementById('btn_copy_html').onclick = ()=>{
+    navigator.clipboard.writeText(out.textContent).then(()=>alert('已複製 HTML'));
+  };
+
+  function generateHTML(data){
+    // 產生純畫面（之後我會依這份 JSON 把功能接上）
+    const nodes = (data.nodes||[]).map(n=>{
+      const style = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;`;
+      if(n.type==='video'){
+        return `<div class="node" style="${style}background:#000;border-radius:12px"></div>`;
+      }
+      if(n.type==='button'){
+        return `<button class="node" style="${style}">${n.text||'按鈕'}</button>`;
+      }
+      if(n.type==='iconbtn'){
+        return `<button class="node" style="${style}"><i class="bi ${n.icon||'bi-camera'}"></i></button>`;
+      }
+      if(n.type==='slider'){
+        return `<div class="node" style="${style}"><input type="range" class="form-range w-75 mx-auto"></div>`;
+      }
+      if(n.type==='toggle'){
+        return `<div class="node" style="${style}">${n.text||'ON/OFF'}</div>`;
+      }
+      if(n.type==='label'){
+        return `<div class="node" style="${style}">${n.text||'標籤'}</div>`;
+      }
+      if(n.type==='panel'){
+        return `<div class="node" style="${style}"></div>`;
+      }
+      return '';
+    }).join('\n');
+
+    return `<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+  body{margin:0;background:#0a0d10;color:#fff}
+  .stage{position:relative;width:${data.meta?.w||1200}px;height:${data.meta?.h||680}px;margin:24px auto;background:#10151c;border:1px solid #263140;border-radius:16px}
+  .node{position:absolute;display:flex;align-items:center;justify-content:center;background:#1c222b;border:1px solid #3a4454;border-radius:12px;color:#fff}
+</style>
+</head><body>
+<div class="stage">
+${nodes}
+</div>
+</body></html>`;
+  }
 </script>
 </body>
 </html>
-"""
-
-with open(os.path.join(root, "index.html"), "w", encoding="utf-8") as f:
-    f.write(index_html)
-
-zip_path = "/mnt/data/MediCamWeb_Pack_v1.zip"
-with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-    z.write(os.path.join(root, "index.html"), arcname="index.html")
-
-zip_path
