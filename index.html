@@ -3,36 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MediCam – Web OEM (White)</title>
-<meta name="description" content="Endoscope web viewer. White theme, vendor-style layout.">
+<title>MediCam – Web OEM (Dark)</title>
+<meta name="description" content="Endoscope web viewer. Dark theme, vendor-style layout.">
 <style>
-  :root{--bg:#fff;--text:#111;--line:#e6e6e6;}
+  :root{
+    --bg:#000;        /* 整體黑底 */
+    --fg:#fff;        /* 文字白 */
+    --line:#2a2a2a;   /* 邊界線 */
+    --card:#0e0e0e;   /* 卡片深灰 */
+    --btn:#171717;    /* 按鈕底 */
+    --btn-bd:#2a2a2a; /* 按鈕邊 */
+    --btn-tx:#eaeaea; /* 按鈕字 */
+    --btn-pr:#eaeaea; /* 主按鈕字 */
+    --btn-pr-bg:#eaeaea; /* 主按鈕底，配黑字 */
+    --btn-pr-tx:#000;
+    --muted:#9aa0a6;  /* 次要字 */
+  }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto}
   /* Top bar */
   .toolbar{display:flex;align-items:center;gap:12px;padding:10px 14px;
-    border-bottom:1px solid var(--line);background:#fff}
+    border-bottom:1px solid var(--line);background:#000}
   .title{font-weight:700;font-size:18px;margin-right:12px}
-  .btn{background:#f2f2f2;border:1px solid var(--line);color:#111;border-radius:6px;padding:8px 14px;cursor:pointer}
-  .btn.primary{background:#111;color:#fff;border-color:#111}
-  select{padding:8px;border:1px solid var(--line);border-radius:6px;min-width:220px;background:#fff;color:#111}
-  .hint{margin-left:auto;color:#666;font-size:12px}
+  .btn{background:var(--btn);border:1px solid var(--btn-bd);color:var(--btn-tx);
+    border-radius:6px;padding:8px 14px;cursor:pointer}
+  .btn.primary{background:var(--btn-pr-bg);color:var(--btn-pr-tx);border-color:var(--btn-pr-bg)}
+  select, input[type="text"]{
+    padding:8px;border:1px solid var(--line);border-radius:6px;min-width:220px;
+    background:#000;color:var(--fg)
+  }
+  .hint{margin-left:auto;color:var(--muted);font-size:12px}
   /* Main */
   .main{display:grid;grid-template-columns:1fr 320px;gap:12px;padding:12px}
-  .stage{display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:8px;min-height:560px;position:relative}
+  .stage{display:flex;align-items:center;justify-content:center;background:#000;border:1px solid var(--line);border-radius:8px;min-height:560px;position:relative}
   .canvas-box{width:624px;height:624px;background:#000;border-radius:8px;overflow:hidden;position:relative}
-  canvas{width:624px;height:624px}
-  .saved{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;padding:6px 10px;border-radius:8px;display:none}
+  canvas{width:624px;height:624px;background:#000}
+  .saved{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.55);color:#fff;padding:6px 10px;border-radius:8px;display:none}
   .controls{display:flex;flex-direction:column;gap:12px}
-  .card{border:1px solid var(--line);border-radius:8px;background:#fff}
-  .card h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:#222}
+  .card{border:1px solid var(--line);border-radius:8px;background:var(--card)}
+  .card h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px;color:#eaeaea}
   .card .body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .status{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 12px;background:#fff;color:#444;font-size:12px}
+  .status{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 12px;background:#000;color:#ccc;font-size:12px}
   input[type="range"]{width:100%}
-  .thumb{width:100%;aspect-ratio:4/3;border:1px solid var(--line);border-radius:6px;object-fit:contain;background:#fafafa}
+  .thumb{width:100%;aspect-ratio:4/3;border:1px solid var(--line);border-radius:6px;object-fit:contain;background:#0a0a0a}
 </style>
 </head>
 <body>
@@ -81,7 +98,7 @@
               </select>
             </label>
           </div>
-          <div class="row">
+          <div class="row" style="width:100%">
             <label style="width:100%">變焦
               <input type="range" id="zoom" min="100" max="400" value="130">
               <span id="zoomText">1.30x</span>
@@ -207,8 +224,11 @@ function startRecording(){
 function stopRecording(){ if(!recording) return; mediaRecorder.stop(); clearInterval(recBlinkTimer); recBlinkTimer=null; recDotVisible=false; recording=false; btnRec.textContent='開始錄影 (F9)'; }
 function toggleRecording(){ recording?stopRecording():startRecording(); }
 
-btnRefresh.onclick=listDevices; btnOpen.onclick=openSelected; btnClose.onclick=closeStream;
-btnMirrorLR.onclick=toggleMirrorLR; btnMirrorUD.onclick=toggleMirrorUD;
+document.getElementById('btnRefresh').onclick=listDevices;
+document.getElementById('btnOpen').onclick=openSelected;
+document.getElementById('btnClose').onclick=closeStream;
+document.getElementById('btnMirrorLR').onclick=toggleMirrorLR;
+document.getElementById('btnMirrorUD').onclick=toggleMirrorUD;
 rotateFixed.onchange=e=>setRotateFixed(e.target.value);
 zoomSlider.oninput=e=>{ setZoom(parseInt(e.target.value)/100); };
 btnSnap.onclick=snapshot; btnRec.onclick=toggleRecording;
