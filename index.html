@@ -3,358 +3,356 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MediCam – Web OEM (Vendor Layout)</title>
-<meta name="description" content="Endoscope web viewer. Vendor-style layout.">
+<title>MediCam – Web OEM (Studio)</title>
+<meta name="description" content="Endoscope web viewer. Vendor-style layout, clean and compact.">
 <style>
   :root{
-    --bg:#000; --fg:#fff; --muted:#cfcfcf; --line:#2c2c2c;
-    --btn-bg:#d9d9d9; --btn-tx:#111; --btn-bd:#b7b7b7; --btn-bg-h:#ededed;
-    --chip-bg:#111; --chip-tx:#fff;
+    --bg:#000; --fg:#fff; --muted:#bdbdbd; --line:#242424;
+    --accent:#22c55e; /* Apple green */
+    --chip:#101010; --chip-bd:#2a2a2a;
+    --btn:#1a1a1a; --btn-bd:#343434; --btn-tx:#eaeaea; --btn-h:#202020;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; overflow:hidden}
-  .app{height:100%;display:grid;grid-template-rows:auto 1fr;gap:0}
-  /* Top bar：更緊湊 */
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  body{overflow:hidden}
+
+  /* ===== 框架：上列 + 主區 三欄 ===== */
+  .app{height:100%;display:grid;grid-template-rows:auto 1fr}
   .top{
-    display:grid;grid-template-columns:auto 1fr auto auto auto auto auto;
-    gap:8px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);background:#000
+    height:44px;display:grid;
+    grid-template-columns:220px 220px 1fr auto auto auto auto;
+    gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--line);
+    background:#000
   }
   .brand{font-weight:800;font-size:22px;letter-spacing:.3px}
-  .label{color:#bdbdbd;font-size:13px;text-align:right}
   .pill, select, input[type="text"]{
-    height:28px; padding:4px 8px; background:var(--chip-bg); color:var(--chip-tx);
-    border:1px solid var(--line); border-radius:4px; min-width:120px; font-size:13px
+    height:30px; padding:6px 10px; background:var(--chip); color:#fff;
+    border:1px solid var(--chip-bd); border-radius:6px; font-size:13px
   }
-  .lang{min-width:110px}
   .btn{
-    height:28px; padding:4px 10px; border:1px solid var(--btn-bd); border-radius:6px;
-    background:var(--btn-bg); color:var(--btn-tx); cursor:pointer; font-size:13px
+    height:30px; padding:5px 12px; background:var(--btn); color:var(--btn-tx);
+    border:1px solid var(--btn-bd); border-radius:8px; cursor:pointer; font-size:13px
   }
-  .btn:hover{background:var(--btn-bg-h)}
-  /* 主區：三欄，左工具列更窄、canvas 置中 */
-  .main{position:relative;display:grid;grid-template-columns:56px 1fr 56px;height:100%}
-  .leftbar{display:flex;flex-direction:column;gap:10px;padding:10px}
-  .iconbtn{
-    width:36px;height:36px;border:1px solid #fff;border-radius:4px;
+  .btn:hover{background:var(--btn-h)}
+  .label{color:var(--muted);font-size:13px}
+
+  .main{
+    height:100%;display:grid;grid-template-columns:72px 1fr 260px; /* 左邊工具固定，右邊為操作停靠區 */
+  }
+
+  /* ===== 左側工具列（固定可見） ===== */
+  .sidebar{
+    border-right:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:10px;align-items:center
+  }
+  .i{
+    width:40px;height:40px;border:1px solid #fff;border-radius:10px;background:transparent;
     display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;
-    background:transparent;font-size:18px;line-height:1
+    transition:.15s
   }
-  .iconbtn:hover{background:#111}
-  .slider-wrap{display:flex;flex-direction:column;align-items:center;color:#ddd;margin-top:6px}
-  .rot-val{font-size:11px;margin-top:4px}
-  input[type="range"]{writing-mode:bt-lr;-webkit-appearance:slider-vertical;width:10px;height:170px}
-  .canvas-wrap{display:flex;align-items:center;justify-content:center}
+  .i:hover{background:#0e0e0e}
+  .vslider-wrap{display:flex;flex-direction:column;align-items:center;margin-top:6px}
+  .rot-txt{font-size:11px;margin-top:4px;color:#ddd}
+  input[type="range"].v{writing-mode:bt-lr;-webkit-appearance:slider-vertical;width:12px;height:170px}
+
+  /* ===== 中央：畫面置中，不被任何按鈕覆蓋 ===== */
+  .center{display:flex;align-items:center;justify-content:center;position:relative}
   .canvas-box{
-    width:min(84vh,82vw); height:min(84vh,82vw); max-width:1000px; max-height:1000px;
-    background:#000; border:1px solid var(--line); border-radius:6px; position:relative
+    width:min(82vh,80vw);height:min(82vh,80vw);max-width:960px;max-height:960px;
+    background:#000;border:1px solid var(--line);border-radius:10px;position:relative
   }
-  canvas{width:100%;height:100%;background:#000;border-radius:6px}
-  /* 底部按鈕：更緊湊，移到畫面內底邊，不需要捲動 */
-  .bbar{
-    position:absolute;left:50%;transform:translateX(-50%);bottom:8px;
-    display:flex;gap:14px;align-items:center
+  canvas{width:100%;height:100%;background:#000;border-radius:10px}
+  .rec-dot{position:absolute;right:10px;top:10px;width:13px;height:13px;border-radius:50%;background:#ff2d2d;display:none;box-shadow:0 0 10px #ff2d2d}
+  .toast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
+    background:rgba(0,0,0,.6);padding:6px 10px;border-radius:8px;color:#fff;display:none;font-size:12px}
+
+  /* ===== 右側：操作停靠區（不遮畫面） ===== */
+  .dock{
+    border-left:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:14px
   }
-  .big{
-    width:64px;height:64px;border:2px solid #fff;border-radius:8px;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;background:transparent
+  .round{
+    width:56px;height:56px;border:2px solid #fff;border-radius:14px;background:transparent;
+    display:flex;align-items:center;justify-content:center;cursor:pointer
   }
-  .big:hover{background:#111}
-  .thumb{
-    width:86px;height:64px;border:1px solid #fff;border-radius:6px;object-fit:contain;background:#0a0a0a
-  }
-  .gear{
-    position:absolute;right:8px;bottom:8px;width:44px;height:44px;border:2px solid #fff;
-    border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:transparent
-  }
-  .rec-dot{position:absolute;right:10px;top:10px;width:12px;height:12px;border-radius:50%;background:#f00;display:none}
-  .toast{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);
-    background:rgba(0,0,0,.6);padding:5px 9px;border-radius:8px;color:#fff;display:none;font-size:12px}
-  /* 設定面板（右側滑出） */
+  .round:hover{background:#0e0e0e}
+  .thumbs{display:flex;gap:8px;flex-wrap:wrap}
+  .thumb{width:88px;height:66px;border:1px solid #fff;border-radius:8px;background:#0a0a0a;object-fit:cover}
+  .hint{color:var(--muted);font-size:12px}
+
+  /* ===== 設定面板：抽屜 + 遮罩 ===== */
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:60}
   .panel{
-    position:fixed;top:0;right:-360px;width:360px;height:100%;background:#0c0c0c;
-    border-left:1px solid var(--line);transition:right .25s ease;z-index:50;padding:14px;color:#fff
+    position:fixed;top:0;right:-360px;width:360px;height:100%;background:#0b0b0b;z-index:70;
+    border-left:1px solid var(--line);transition:right .22s ease;overflow:auto;padding:14px
   }
   .panel.open{right:0}
-  .panel h3{margin:0 0 10px 0;font-size:16px}
-  .p-row{display:flex;align-items:center;justify-content:space-between;margin:8px 0}
-  .p-row > *{font-size:13px}
-  .close{position:absolute;right:12px;top:10px;cursor:pointer;font-size:18px}
+  .mask.show{display:block}
+  .p-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .p-title h3{margin:0;font-size:16px}
+  .x{width:28px;height:28px;border:1px solid #fff;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .group{margin:12px 0;border-top:1px solid #151515;padding-top:10px}
+  .row{display:flex;align-items:center;gap:10px;margin:10px 0}
+  .row label{flex:0 0 130px;color:#ddd;font-size:13px}
+  .row input[type="range"]{flex:1}
+  .badge{display:inline-block;background:var(--accent);color:#000;padding:2px 8px;border-radius:999px;font-weight:700;font-size:11px}
+
+  /* ===== 色彩重點 ===== */
+  .i.active,.round.active{outline:2px solid var(--accent);box-shadow:0 0 0 2px rgba(34,197,94,.2)}
+  .pill:focus,.btn:focus,.round:focus,.i:focus{outline:2px solid var(--accent)}
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- Top bar -->
+  <!-- 上列 -->
   <div class="top">
     <div class="brand" data-i18n="brand">MediVisionTech</div>
-    <div class="label" data-i18n="selectCam" style="text-align:right;">Please select camera</div>
-    <select id="deviceSelect" class="pill"></select>
-    <button class="btn" id="btnFind" data-i18n="find">Find device</button>
-    <div class="label" style="text-align:right;">ID</div>
-    <input id="txtId" class="pill" type="text" style="width:80px">
-    <div class="label" data-i18n="name">Name</div>
-    <input id="txtName" class="pill" type="text" style="width:130px">
-    <select id="lang" class="pill lang" title="Language">
-      <option value="en">English</option>
-      <option value="zh">繁體中文</option>
+    <select id="lang" class="pill">
+      <option value="zh">繁體中文</option><option value="en">English</option>
     </select>
+    <div></div>
+    <div class="label" data-i18n="selectCam">選擇鏡頭</div>
+    <select id="deviceSelect" class="pill"></select>
+    <button class="btn" id="btnFind" data-i18n="find">搜尋裝置</button>
+    <button class="btn" id="btnGear" data-i18n="settings">設定</button>
   </div>
 
-  <!-- Main -->
+  <!-- 主區：左工具／中畫面／右停靠 -->
   <div class="main">
-    <!-- Left toolbar -->
-    <div class="leftbar">
-      <button class="iconbtn" id="btnFull" title="Fullscreen">⤢</button>
-      <button class="iconbtn" id="btnRotateL" title="Rotate -10°">↺</button>
-      <button class="iconbtn" id="btnRotateR" title="Rotate +10°">↻</button>
-      <button class="iconbtn" id="btnMirrorLR" title="Mirror LR">⇋</button>
-      <button class="iconbtn" id="btnMirrorUD" title="Mirror UD">⇅</button>
-      <button class="iconbtn" id="btnReset" title="Reset" style="font-size:12px">RESET</button>
+    <!-- 左：工具 -->
+    <aside class="sidebar">
+      <button class="i" id="iFull" title="全螢幕">⤢</button>
+      <button class="i" id="iRLeft" title="逆時針 10°">↺</button>
+      <button class="i" id="iRRight" title="順時針 10°">↻</button>
+      <button class="i" id="iFlipX" title="左右鏡像">⇋</button>
+      <button class="i" id="iFlipY" title="上下鏡像">⇅</button>
+      <button class="i" id="iReset" title="重設">⟲</button>
 
-      <div class="slider-wrap">
-        <input id="rotSlider" type="range" min="-180" max="180" value="0">
-        <div class="rot-val" id="rotVal">Rotation 0°</div>
+      <div class="vslider-wrap">
+        <input id="rotSlider" class="v" type="range" min="-180" max="180" value="0">
+        <div class="rot-txt" id="rotTxt">Rotation 0°</div>
       </div>
-    </div>
+    </aside>
 
-    <!-- Center canvas -->
-    <div class="canvas-wrap">
+    <!-- 中：畫面 -->
+    <main class="center">
       <div class="canvas-box" id="box">
-        <canvas id="canvas" width="624" height="624"></canvas>
+        <canvas id="cv" width="624" height="624"></canvas>
         <div class="rec-dot" id="recDot"></div>
         <div class="toast" id="toast">Saved</div>
-
-        <!-- bottom buttons (inside canvas) -->
-        <div class="bbar">
-          <button class="big" id="btnShot" title="Snapshot (F10)"><span style="font-size:24px">📷</span></button>
-          <img id="thumb" class="thumb" alt="">
-          <button class="big" id="btnRec" title="Record (F9)"><span style="font-size:24px">🎥</span></button>
-          <button class="big" id="btnSaveRec" title="Stop & Save"><span style="font-size:11px;letter-spacing:1px">VIDEO</span></button>
-        </div>
-
-        <button class="gear" id="btnGear" title="Settings">⚙</button>
       </div>
-    </div>
+    </main>
 
-    <div></div>
+    <!-- 右：停靠（不遮畫面） -->
+    <aside class="dock">
+      <div class="hint" data-i18n="actions">操作</div>
+      <button class="round" id="bShot" title="截圖 (F10)">📷</button>
+      <button class="round" id="bRec" title="錄影 (F9)">●</button>
+      <button class="round" id="bStop" title="停止並存檔">■</button>
+      <div class="hint" data-i18n="latestShots">最新截圖</div>
+      <div class="thumbs" id="thumbs"></div>
+    </aside>
   </div>
 </div>
 
-<!-- 設定面板 -->
+<!-- 遮罩 + 設定抽屜 -->
+<div class="mask" id="mask"></div>
 <div class="panel" id="panel">
-  <div class="close" id="pClose">✕</div>
-  <h3 data-i18n="settings">Settings</h3>
-  <div class="p-row">
-    <span data-i18n="autoEnh">Auto enhancement (close-up)</span>
-    <label><input type="checkbox" id="pEnh" checked></label>
+  <div class="p-title">
+    <h3 data-i18n="settings">設定 <span class="badge">PRO</span></h3>
+    <div class="x" id="pClose">✕</div>
   </div>
-  <div class="p-row">
-    <span data-i18n="rotStep">Rotate step (F11)</span>
-    <select id="pStep">
-      <option value="-10">-10°</option>
-      <option value="-15">-15°</option>
-      <option value="-5">-5°</option>
-    </select>
+
+  <div class="group">
+    <div class="row">
+      <label data-i18n="step">F11 旋轉步進</label>
+      <select id="pStep" class="pill" style="min-width:110px">
+        <option value="-10">-10°</option>
+        <option value="-15">-15°</option>
+        <option value="-5">-5°</option>
+      </select>
+    </div>
+    <div class="row">
+      <label data-i18n="zoom">變焦</label>
+      <input id="pZoom" type="range" min="100" max="300" value="130">
+      <div id="pZoomVal">1.30x</div>
+    </div>
   </div>
-  <div class="p-row">
-    <span data-i18n="zoom">Zoom</span>
-    <input type="range" id="pZoom" min="100" max="300" value="130" style="width:160px">
-    <span id="pZoomVal">1.30x</span>
-  </div>
-  <hr style="border-color:#222">
-  <div class="p-row">
-    <span>Gamma</span><input type="range" id="pGamma" min="80" max="180" value="130" style="width:180px">
-  </div>
-  <div class="p-row">
-    <span data-i18n="sharp">Sharpen</span><input type="range" id="pSharp" min="0" max="100" value="60" style="width:180px">
-  </div>
-  <div class="p-row">
-    <span data-i18n="saturation">Saturation</span><input type="range" id="pSat" min="-30" max="30" value="8" style="width:180px">
-  </div>
-  <div class="p-row">
-    <span data-i18n="denoise">Denoise</span><input type="range" id="pDn" min="0" max="30" value="6" style="width:180px">
+
+  <div class="group">
+    <div class="row"><label>Gamma</label><input id="pGamma" type="range" min="80" max="180" value="125"></div>
+    <div class="row"><label data-i18n="sharp">銳利度</label><input id="pSharp" type="range" min="0" max="100" value="60"></div>
+    <div class="row"><label data-i18n="saturation">飽和度</label><input id="pSat" type="range" min="-30" max="30" value="5"></div>
+    <div class="row"><label data-i18n="denoise">降噪</label><input id="pDn" type="range" min="0" max="30" value="6"></div>
   </div>
 </div>
 
 <script>
-/* ====== 基本元素 ====== */
-const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
-const deviceSelect=document.getElementById('deviceSelect'), btnFind=document.getElementById('btnFind');
-const btnFull=document.getElementById('btnFull'), btnRotateL=document.getElementById('btnRotateL'), btnRotateR=document.getElementById('btnRotateR');
-const btnMirrorLR=document.getElementById('btnMirrorLR'), btnMirrorUD=document.getElementById('btnMirrorUD'), btnReset=document.getElementById('btnReset');
-const rotSlider=document.getElementById('rotSlider'), rotVal=document.getElementById('rotVal');
-const btnShot=document.getElementById('btnShot'), btnRec=document.getElementById('btnRec'), btnSaveRec=document.getElementById('btnSaveRec'), thumb=document.getElementById('thumb');
+/* ========== 基本元素 ========== */
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const deviceSel=document.getElementById('deviceSelect'), btnFind=document.getElementById('btnFind');
+const iFull=document.getElementById('iFull'), iRLeft=document.getElementById('iRLeft'), iRRight=document.getElementById('iRRight');
+const iFlipX=document.getElementById('iFlipX'), iFlipY=document.getElementById('iFlipY'), iReset=document.getElementById('iReset');
+const rotSlider=document.getElementById('rotSlider'), rotTxt=document.getElementById('rotTxt');
 const recDot=document.getElementById('recDot'), toast=document.getElementById('toast'), box=document.getElementById('box');
+const bShot=document.getElementById('bShot'), bRec=document.getElementById('bRec'), bStop=document.getElementById('bStop'), thumbs=document.getElementById('thumbs');
+/* 設定 */
 const langSel=document.getElementById('lang');
-/* 設定面板 */
-const panel=document.getElementById('panel'), pClose=document.getElementById('pClose'), btnGear=document.getElementById('btnGear');
-const pEnh=document.getElementById('pEnh'), pStep=document.getElementById('pStep');
-const pZoom=document.getElementById('pZoom'), pZoomVal=document.getElementById('pZoomVal');
+const mask=document.getElementById('mask'), panel=document.getElementById('panel'), pClose=document.getElementById('pClose'), btnGear=document.getElementById('btnGear');
+const pStep=document.getElementById('pStep'), pZoom=document.getElementById('pZoom'), pZoomVal=document.getElementById('pZoomVal');
 const pGamma=document.getElementById('pGamma'), pSharp=document.getElementById('pSharp'), pSat=document.getElementById('pSat'), pDn=document.getElementById('pDn');
 
-/* 狀態 */
+/* ========== 狀態 ========== */
 let stream=null, video=null, raf=null;
-let mirrorLR=false, mirrorUD=false, deg=0, zoom=1.3;
+let flipX=false, flipY=false, deg=0, zoom=1.3, step=-10;
 let recorder=null, chunks=[], recording=false;
-let step=-10; // F11 旋轉步進
-let lastEnhFrame=0;
 
-/* ====== i18n（中/英） ====== */
+/* ========== 多語 ========== */
 const dict={
-  en:{
-    brand:'MediVisionTech', selectCam:'Please select camera', find:'Find device', name:'Name',
-    settings:'Settings', autoEnh:'Auto enhancement (close-up)', rotStep:'Rotate step (F11)',
-    zoom:'Zoom', sharp:'Sharpen', saturation:'Saturation', denoise:'Denoise',
-    saved:'Saved', recStart:'Recording… (Press F9 to stop)', recSaved:'Video saved'
-  },
-  zh:{
-    brand:'MediVisionTech', selectCam:'選擇鏡頭', find:'搜尋裝置', name:'姓名',
-    settings:'設定', autoEnh:'自動畫質調校（近距）', rotStep:'旋轉步進（F11）',
-    zoom:'變焦', sharp:'銳利度', saturation:'飽和度', denoise:'降噪',
-    saved:'已儲存', recStart:'錄影中…（按 F9 停止）', recSaved:'已儲存影片'
-  }
+  zh:{brand:'MediVisionTech',selectCam:'選擇鏡頭',find:'搜尋裝置',settings:'設定',actions:'操作',latestShots:'最新截圖',
+      step:'F11 旋轉步進',zoom:'變焦',sharp:'銳利度',saturation:'飽和度',denoise:'降噪',
+      saved:'已儲存',recStart:'錄影中…（按 F9 停止）',recSaved:'已儲存影片'},
+  en:{brand:'MediVisionTech',selectCam:'Select camera',find:'Find device',settings:'Settings',actions:'Actions',latestShots:'Latest shots',
+      step:'F11 rotate step',zoom:'Zoom',sharp:'Sharpen',saturation:'Saturation',denoise:'Denoise',
+      saved:'Saved',recStart:'Recording… (F9 to stop)',recSaved:'Video saved'}
 };
-function applyLang(code){
-  const t=dict[code]||dict.en;
-  document.querySelectorAll('[data-i18n]').forEach(el=>{
-    const key=el.getAttribute('data-i18n'); if(t[key]) el.textContent=t[key];
-  });
+function i18nApply(code){
+  const t=dict[code]||dict.zh;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(t[k]) el.textContent=t[k];});
   toast.textContent=t.saved;
 }
-langSel.onchange=()=>applyLang(langSel.value);
+langSel.onchange=()=>i18nApply(langSel.value);
 
-/* ====== UI 小工具 ====== */
-function toastOnce(msg){
-  toast.textContent=msg; toast.style.display='block';
-  setTimeout(()=>toast.style.display='none',900);
-}
-function rotate(d){ setRotate(deg + d); }
-function setRotate(v){ deg=(Number(v)%360+360)%360; rotSlider.value=deg; rotVal.textContent=`Rotation ${deg}°`; }
-function resetView(){ mirrorLR=false; mirrorUD=false; setRotate(0); zoom=1.3; pZoom.value=130; pZoomVal.textContent='1.30x'; }
-function setZoom(v){ zoom=Math.max(1,Math.min(3,v)); pZoom.value=Math.round(zoom*100); pZoomVal.textContent=zoom.toFixed(2)+'x'; }
+/* ========== 工具 ========== */
+function toastOnce(msg){ toast.textContent=msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none',900); }
+function setRotate(v){ deg=(Number(v)%360+360)%360; rotSlider.value=deg; rotTxt.textContent=`Rotation ${deg}°`; }
+function rotate(d){ setRotate(deg+d); }
+function setZoom(v){ zoom=Math.max(1,Math.min(3,v)); pZoomVal.textContent=zoom.toFixed(2)+'x'; pZoom.value=Math.round(zoom*100); }
+function resetAll(){ flipX=false; flipY=false; setRotate(0); setZoom(1.3); }
 
-/* ====== 視訊渲染 ====== */
-function render(){
-  if(!video){ raf=requestAnimationFrame(render); return; }
+/* ========== 渲染迴圈 ========== */
+let lastEnh=0;
+function loop(){
+  if(!video){ raf=requestAnimationFrame(loop); return; }
   const w=video.videoWidth,h=video.videoHeight;
   if(w&&h){
-    ctx.save(); ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.translate(canvas.width/2, canvas.height/2);
-    ctx.scale(mirrorLR?-1:1, mirrorUD?-1:1);
+    ctx.save(); ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.translate(cv.width/2, cv.height/2);
+    ctx.scale(flipX?-1:1, flipY?-1:1);
     ctx.rotate(deg*Math.PI/180);
-    const vw=canvas.width, vh=canvas.height;
-    const sc=Math.max(vw/w, vh/h)*zoom, dw=w*sc, dh=h*sc;
-
-    if(pEnh.checked){
-      // 簡單的近距強化（對比/飽和/亮度），每 2 frame 更新一次濾鏡字串
-      const now=performance.now();
-      if(now-lastEnhFrame>60){
-        const gamma=parseInt(pGamma.value)/100.0;
-        const bright=(gamma>=1?1+(gamma-1)*0.8:1-(1-gamma)*0.5);
-        const contrast=1.1+(parseInt(pSharp.value)/100)*0.5;
-        const sat=1.0+(parseInt(pSat.value)/100);
-        const blur=Math.max(0, 6-parseInt(pDn.value)/6);
-        ctx.filter=`contrast(${contrast}) saturate(${sat}) brightness(${bright}) blur(${blur}px)`;
-        lastEnhFrame=now;
-      }
-    }else{
-      ctx.filter='none';
+    // 近拍強化：用滑桿計算濾鏡（每 ~60ms 更新字串以省效能）
+    const now=performance.now();
+    if(now-lastEnh>60){
+      const gamma=parseInt(pGamma.value)/100;
+      const bright=(gamma>=1?1+(gamma-1)*0.8:1-(1-gamma)*0.5);
+      const contrast=1.1+(parseInt(pSharp.value)/100)*0.5;
+      const sat=1.0+(parseInt(pSat.value)/100);
+      const blur=Math.max(0, 6-parseInt(pDn.value)/6);
+      ctx.filter=`contrast(${contrast}) saturate(${sat}) brightness(${bright}) blur(${blur}px)`;
+      lastEnh=now;
     }
-
+    const sc=Math.max(cv.width/w, cv.height/h)*zoom, dw=w*sc, dh=h*sc;
     ctx.drawImage(video, -dw/2, -dh/2, dw, dh);
     ctx.filter='none';
     ctx.restore();
   }
-  raf=requestAnimationFrame(render);
+  raf=requestAnimationFrame(loop);
 }
 
-/* ====== 錄影 ====== */
-function startRec(){
+/* ========== 錄影 ========== */
+function recStart(){
   if(recording) return;
-  const s=canvas.captureStream(30);
+  const s=cv.captureStream(30);
   recorder=new MediaRecorder(s,{mimeType:'video/webm;codecs=vp9'});
   chunks=[];
   recorder.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
   recorder.onstop=()=>{
     const blob=new Blob(chunks,{type:'video/webm'}), url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download=`VID_${Date.now()}.webm`; a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),4000);
-    toastOnce(dict[langSel.value]?.recSaved || dict.en.recSaved);
+    setTimeout(()=>URL.revokeObjectURL(url),6000);
+    toastOnce(dict[langSel.value]?.recSaved || dict.zh.recSaved);
   };
   recorder.start(); recording=true; recDot.style.display='block';
-  toastOnce(dict[langSel.value]?.recStart || dict.en.recStart);
+  bRec.classList.add('active');
+  toastOnce(dict[langSel.value]?.recStart || dict.zh.recStart);
 }
-function stopAndSave(){ if(!recording) return; recorder.stop(); recording=false; recDot.style.display='none'; }
+function recStop(){
+  if(!recording) return;
+  recorder.stop(); recording=false; recDot.style.display='none';
+  bRec.classList.remove('active');
+}
 
-/* ====== 截圖 ====== */
-function snapshot(){
-  canvas.toBlob(b=>{
+/* ========== 截圖 ========== */
+function shot(){
+  cv.toBlob(b=>{
     if(!b) return;
     const url=URL.createObjectURL(b);
     const a=document.createElement('a'); a.href=url; a.download=`IMG_${Date.now()}.png`; a.click();
-    thumb.src=url; // 顯示縮圖
-    toastOnce(dict[langSel.value]?.saved || dict.en.saved);
+    // 加入縮圖列
+    const img=document.createElement('img'); img.className='thumb'; img.src=url; thumbs.prepend(img);
+    // 釋放
     setTimeout(()=>URL.revokeObjectURL(url),8000);
+    toastOnce(dict[langSel.value]?.saved || dict.zh.saved);
   },'image/png',0.95);
 }
 
-/* ====== 相機 ====== */
-async function refreshDevices(){
-  const devs=await navigator.mediaDevices.enumerateDevices();
-  const cams=devs.filter(d=>d.kind==='videoinput');
-  deviceSelect.innerHTML=''; cams.forEach((c,i)=>{ const o=document.createElement('option'); o.value=c.deviceId; o.text=c.label||`Camera ${i+1}`; deviceSelect.appendChild(o); });
+/* ========== 裝置 ========== */
+async function listCams(){
+  const ds=await navigator.mediaDevices.enumerateDevices();
+  const cams=ds.filter(d=>d.kind==='videoinput');
+  deviceSel.innerHTML=''; cams.forEach((c,i)=>{const o=document.createElement('option'); o.value=c.deviceId; o.text=c.label||`Camera ${i+1}`; deviceSel.appendChild(o);});
 }
-async function openSelected(){
-  stopAll();
-  const id=deviceSelect.value;
-  const c={video:{deviceId:id?{exact:id}:undefined, width:{ideal:1280}, height:{ideal:720}}};
+async function openCam(){
+  stopCam();
+  const id=deviceSel.value;
+  const c={video:{deviceId:id?{exact:id}:undefined,width:{ideal:1280},height:{ideal:720}}};
   stream=await navigator.mediaDevices.getUserMedia(c);
   video=document.createElement('video'); video.srcObject=stream; video.playsInline=true; await video.play();
 }
-function stopAll(){
-  if(recording) stopAndSave();
+function stopCam(){
+  if(recording) recStop();
   if(raf) cancelAnimationFrame(raf); raf=null;
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
   video=null; recDot.style.display='none';
 }
 
-/* ====== 事件 ====== */
-btnFind.onclick=refreshDevices;
-deviceSelect.onchange=async()=>{ await openSelected(); };
-btnFull.onclick=()=>{ if(document.fullscreenElement) document.exitFullscreen(); else box.requestFullscreen(); };
-btnRotateL.onclick=()=>rotate(-10);
-btnRotateR.onclick=()=>rotate(+10);
-btnMirrorLR.onclick=()=>{ mirrorLR=!mirrorLR; };
-btnMirrorUD.onclick=()=>{ mirrorUD=!mirrorUD; };
-btnReset.onclick=resetView;
+/* ========== 事件 ========== */
+btnFind.onclick=listCams; deviceSel.onchange=openCam;
+iFull.onclick=()=>{ if(document.fullscreenElement) document.exitFullscreen(); else box.requestFullscreen(); };
+iRLeft.onclick =()=>rotate(-10);
+iRRight.onclick=()=>rotate(+10);
+iFlipX.onclick =()=>{ flipX=!flipX; iFlipX.classList.toggle('active',flipX); };
+iFlipY.onclick =()=>{ flipY=!flipY; iFlipY.classList.toggle('active',flipY); };
+iReset.onclick =resetAll;
 rotSlider.oninput=e=>setRotate(e.target.value);
-btnShot.onclick=snapshot;
-btnRec.onclick=()=>recording?stopAndSave():startRec();
-btnSaveRec.onclick=stopAndSave;
 
-/* 設定面板開關與控制 */
-btnGear.onclick=()=>panel.classList.add('open');
-pClose.onclick=()=>panel.classList.remove('open');
+bShot.onclick=shot;
+bRec.onclick =()=> recording?recStop():recStart();
+bStop.onclick=recStop;
+
+/* 設定抽屜：開/關（含遮罩、ESC） */
+function openPanel(){ panel.classList.add('open'); mask.classList.add('show'); }
+function closePanel(){ panel.classList.remove('open'); mask.classList.remove('show'); }
+btnGear.onclick=openPanel; pClose.onclick=closePanel; mask.onclick=closePanel;
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePanel(); });
+
+/* 設定：步進/變焦 */
 pStep.onchange=()=>{ step=parseInt(pStep.value)||-10; };
 pZoom.oninput=e=>setZoom(parseInt(e.target.value)/100);
 
-/* 快捷鍵：F9/F10/F11、+/- 變焦 */
+/* 快捷鍵 */
 document.addEventListener('keydown',e=>{
-  if(e.code==='F9'){ e.preventDefault(); recording?stopAndSave():startRec(); }
-  else if(e.code==='F10'){ e.preventDefault(); snapshot(); }
+  if(e.code==='F9'){ e.preventDefault(); recording?recStop():recStart(); }
+  else if(e.code==='F10'){ e.preventDefault(); shot(); }
   else if(e.code==='F11'){ e.preventDefault(); rotate(step); }
   else if(e.key==='+'){ setZoom(zoom+0.1); }
   else if(e.key==='-'){ setZoom(zoom-0.1); }
 });
 
-/* 啟動：要求權限 → 列攝影機 → 開第一支 → 套語言 → 渲染 */
+/* 啟動 */
 (async()=>{
   try{ await navigator.mediaDevices.getUserMedia({video:true}); }catch(e){}
-  await refreshDevices();
-  if(deviceSelect.options.length){ await openSelected(); }
-  applyLang('zh'); // 預設中文
-  setZoom(1.3);
-  render();
+  await listCams(); if(deviceSel.options.length) await openCam();
+  i18nApply('zh'); setZoom(1.3); loop();
 })();
 </script>
 </body>
