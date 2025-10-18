@@ -1,441 +1,340 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MediVisionTech UI 模擬器</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
-<style>
-  html,body{height:100%}
-  body{display:grid;grid-template-rows:56px 1fr}
-  header{background:#0d0f12;color:#fff}
-  .brand{font-weight:700}
-  .shell{display:grid;grid-template-columns:260px 1fr 320px;gap:12px;padding:12px;height:100%;overflow:hidden;background:#111}
-  .panel{background:#171a1f;border:1px solid #28303a;border-radius:12px;color:#eef;display:flex;flex-direction:column;min-height:0}
-  .panel h6{padding:10px 12px;margin:0;border-bottom:1px solid #28303a;color:#b9c4d0}
-  .left, .right {overflow:auto}
-  .canvas-wrap{display:grid;place-items:center;overflow:hidden}
-  .canvas{
-    position:relative;
-    width:1220px;height:680px;
-    background:#0a0d10;border:1px solid #28303a;border-radius:16px;
-    box-shadow:0 10px 40px rgba(0,0,0,.4);
-  }
-  .ghost{position:absolute;left:0;top:0;right:0;bottom:0;border-radius:16px;background:
-    linear-gradient(transparent 39px, #1e232c 40px),
-    linear-gradient(90deg, transparent 39px, #1e232c 40px);
-    background-size:40px 40px;
-    opacity:.25;pointer-events:none
-  }
-  /* 可拖拉元件 */
-  .node{
-    position:absolute;user-select:none;
-    background:#1c222b;border:1px solid #3a4454;border-radius:12px;color:#fff;
-    display:flex;align-items:center;justify-content:center;padding:8px;
-  }
-  .node.selected{outline:2px solid #4caf50}
-  .handle{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:#4caf50;border-radius:3px}
-  .node .bi{pointer-events:none}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediCam Interface</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        /* --- 1. 全局和基礎設定 (暗黑主題) --- */
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #2b2b2b; /* 截圖中的深灰色背景 */
+            color: #ffffff; /* 預設文字為白色 */
+            overflow: hidden; /* 防止滾動，保持介面固定 */
+        }
 
-  /* palette item */
-  .item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #28303a;cursor:pointer}
-  .item:hover{background:#202633}
-  .item .bi{width:22px;text-align:center}
+        /* 自訂所有控制項的通用樣式 */
+        input[type="text"], select, button {
+            background-color: #555;
+            color: #fff;
+            border: 1px solid #777;
+            border-radius: 3px;
+            padding: 5px 8px;
+            font-size: 14px;
+        }
 
-  /* 屬性表單 */
-  .form-control, .form-select{background:#111820;color:#cfe;border-color:#314154}
-  .form-control:focus, .form-select:focus{box-shadow:none;border-color:#4caf50}
-  .btn-ghost{background:#111820;color:#cfe;border:1px solid #314154}
-  .btn-ghost:hover{background:#18212b}
+        button {
+            cursor: pointer;
+            background-color: #666;
+        }
+        button:hover {
+            background-color: #777;
+        }
 
-  /* 預覽遮罩 */
-  .preview-mask{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000}
-  .preview{width:min(92vw,1400px);height:min(90vh,820px);background:#0a0d10;border:1px solid #28303a;border-radius:16px;overflow:auto}
-  .preview-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #28303a;color:#cfe}
-  .preview-body{padding:12px}
-  .code{white-space:pre; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px;color:#cfe;background:#0e131a;border:1px solid #28303a;border-radius:10px;padding:12px}
-</style>
+        /* --- 2. 應用程式主容器 (Flexbox 垂直佈局) --- */
+        .app-container {
+            display: flex;
+            flex-direction: column; /* 垂直排列：頁首 + 主內容 */
+            height: 100vh; /* 佔滿整個視窗高度 */
+        }
+
+        /* --- 3. 頁首 (app-header) --- */
+        .app-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #222; /* 頁首背景色 */
+            border-bottom: 1px solid #444;
+            flex-shrink: 0; /* 頁首高度不壓縮 */
+        }
+        .app-header .logo {
+            font-size: 20px;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+        .app-header .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* 元素間距 */
+        }
+        .app-header .spacer {
+            flex-grow: 1; /* 這是一個彈性空間，會把右側元素推到最右邊 */
+        }
+
+        /* --- 4. 主內容區 (CSS Grid 網格佈局) --- */
+        /* 這就是解決「亂跳」的關鍵！ */
+        .main-content {
+            flex-grow: 1; /* 佔滿頁首以外的所有剩餘空間 */
+            display: grid;
+            /* 定義三欄：左側欄(auto), 中央(1fr), 右側欄(auto) */
+            grid-template-columns: auto 1fr auto; 
+            padding: 15px;
+            gap: 15px; /* 欄位間的空隙 */
+            overflow: hidden; /* 內部內容超出時隱藏 */
+        }
+
+        /* --- 5. 左側欄 (left-sidebar) --- */
+        .left-sidebar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .left-sidebar .icon-button {
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: #333;
+            border: 1px solid #555;
+        }
+        .left-sidebar .vertical-slider-container {
+            flex-grow: 1; /* 佔滿剩餘垂直空間 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            writing-mode: vertical-rl; /* 讓文字和滑桿垂直 */
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .left-sidebar input[type="range"][orient="vertical"] {
+            width: 20px; /* 垂直滑桿的寬度 */
+            flex-grow: 1;
+            /* 讓滑桿垂直 */
+            -webkit-appearance: slider-vertical;
+            writing-mode: bt-lr; /* Chrome/Safari */
+        }
+
+        /* --- 6. 中央面板 (center-panel) --- */
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0; /* 防止 Grid 佈局溢出 */
+        }
+        .video-container {
+            flex-grow: 1; /* 佔滿所有可用垂直空間 */
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-radius: 5px;
+        }
+        /* 您的攝影機影像會顯示在這裡 */
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 填滿容器，可能會裁切 */
+        }
+        .video-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0; /* 高度不壓縮 */
+        }
+        .video-controls .main-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .video-controls .action-button {
+            width: 80px;
+            height: 60px;
+            background-color: #333;
+            border: 1px solid #555;
+            font-size: 24px;
+        }
+        .video-controls .arrow-button {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+        }
+
+        /* --- 7. 右側欄 (right-sidebar) --- */
+        .right-sidebar {
+            width: 300px; /* 固定寬度 */
+            background-color: #333;
+            border-radius: 5px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto; /* 如果內容太多，允許內部滾動 */
+        }
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+        }
+        .slider-control {
+            display: grid;
+            grid-template-columns: 80px 1fr 50px; /* 標籤 | 滑桿 | 數值 */
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .slider-control input[type="range"] {
+            width: 100%;
+            margin: 0;
+        }
+        .parameter-management .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .parameter-management .actions button {
+            flex-grow: 1; /* 讓按鈕平分寬度 */
+        }
+        .parameter-list {
+            background-color: #222;
+            border: 1px solid #555;
+            height: 100px;
+            margin-top: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            border-radius: 3px;
+        }
+
+    </style>
 </head>
 <body>
-<header class="px-3 d-flex align-items-center justify-content-between">
-  <div class="brand">MediVisionTech – 拖拉式 UI 模擬器</div>
-  <div class="d-flex gap-2">
-    <button id="btn_export" class="btn btn-success btn-sm"><i class="bi bi-download"></i> 匯出 JSON</button>
-    <label class="btn btn-ghost btn-sm m-0">
-      <i class="bi bi-upload"></i> 匯入 JSON <input id="file_import" type="file" accept="application/json" hidden>
-    </label>
-    <button id="btn_preview" class="btn btn-primary btn-sm"><i class="bi bi-eye"></i> 預覽/取 HTML</button>
-    <button id="btn_clear" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i> 清空畫布</button>
-  </div>
-</header>
 
-<div class="shell">
-  <!-- 左：元件庫 -->
-  <div class="panel left">
-    <h6>元件庫</h6>
-    <div class="item" data-type="button"><i class="bi bi-square"></i><span>按鈕（文字）</span></div>
-    <div class="item" data-type="iconbtn"><i class="bi bi-camera"></i><span>圖示按鈕</span></div>
-    <div class="item" data-type="slider"><i class="bi bi-sliders"></i><span>滑桿</span></div>
-    <div class="item" data-type="toggle"><i class="bi bi-toggle-on"></i><span>切換鍵</span></div>
-    <div class="item" data-type="label"><i class="bi bi-fonts"></i><span>標籤</span></div>
-    <div class="item" data-type="panel"><i class="bi bi-layout-sidebar-inset"></i><span>面板（容器）</span></div>
-    <div class="item" data-type="video"><i class="bi bi-camera-video"></i><span>影像區（相機佔位）</span></div>
+    <div class="app-container">
 
-    <div class="p-2 small text-secondary">
-      提示：點元件即可加入畫布；在畫布上可拖曳與由右下角縮放。<br>
-      點選元件後，在右側可修改屬性。
+        <header class="app-header">
+            <div class="logo">MediVisionTech</div>
+            <div class="controls">
+                <label for="camera-select">Please select camera</label>
+                <select id="camera-select">
+                    <option>PC Camera</option>
+                    </select>
+                <button id="find-device">Find device</button>
+                <label for="id-input">ID</label>
+                <input type="text" id="id-input" size="10">
+                <label for="name-input">Name</label>
+                <input type="text" id="name-input" size="15">
+            </div>
+            <div class="spacer"></div> <div class="controls">
+                <label for="lang-select">Language</label>
+                <select id="lang-select">
+                    <option>English</option>
+                    <option>繁體中文</option>
+                </select>
+            </div>
+        </header>
+
+        <main class="main-content">
+
+            <aside class="left-sidebar">
+                <button class="icon-button"><i class="fas fa-expand"></i></button>
+                <button class="icon-button"><i class="fas fa-undo"></i></button>
+                <button class="icon-button"><i class="fas fa-redo"></i></button>
+                <button class="icon-button"><i class="fas fa-exclamation-triangle"></i></button>
+                <button class="icon-button"><i class="fas fa-play"></i></button>
+                <button class="icon-button">RESET</button>
+                
+                <div class="vertical-slider-container">
+                    <span>Rotation degree</span>
+                    <input type="range" min="0" max="360" value="5" orient="vertical">
+                    <span>5</span>
+                </div>
+            </aside>
+
+            <section class="center-panel">
+                <div class="video-container">
+                    <video id="endoscope-video" autoplay playsinline></video>
+                </div>
+                <div class="video-controls">
+                    <div class="main-actions">
+                        <button class="action-button" id="snapshot-btn">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <button class="action-button" id="record-btn">
+                            <i class="fas fa-video"></i>
+                        </button>
+                        <button class="action-button" id="folder-btn">
+                            <i class="fas fa-folder"></i>
+                        </button>
+                    </div>
+                    <button class="arrow-button"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </section>
+
+            <aside class="right-sidebar">
+                <div class="control-group image-parameters">
+                    <h3>Image Parameter Control</h3>
+                    <div class="slider-control">
+                        <label for="brightness">Brightness:</label>
+                        <input type="range" id="brightness" min="0" max="100" value="30">
+                        <span>30.00</span>
+                    </div>
+                    <div class="slider-control">
+                        <label for="contrast">Contrast:</label>
+                        <input type="range" id="contrast" min="0" max="100" value="0">
+                        <span>0.00</span>
+                    </div>
+                    <div class="slider-control">
+                        <label for="saturation">Saturation:</label>
+                        <input type="range" id="saturation" min="0" max="100" value="30">
+                        <span>30.00</span>
+                    </div>
+                    <div class="slider-control">
+                        <label for="sharpness">Sharpness:</label>
+                        <input type="range" id="sharpness" min="0" max="100" value="5">
+                        <span>5.00</span>
+                    </div>
+                    <div class="slider-control">
+                        <label for="gamma">Gamma:</label>
+                        <input type="range" id="gamma" min="0" max="200" value="120">
+                        <span>120.00</span>
+                    </div>
+                    <button id="reset-params" style="width: 100%;">Reset</button>
+                </div>
+
+                <div class="control-group parameter-management">
+                    <h3>Parameter Management</h3>
+                    <input type="text" id="param-name" placeholder="Enter parameter" style="width: 93%;">
+                    <div class="actions">
+                        <button id="save-param">Save</button>
+                        <button id="delete-param">Delete</button>
+                        <button id="rename-param">Rename</button>
+                    </div>
+                    <div class="parameter-list">
+                        <div>333</div>
+                        <div>888</div>
+                    </div>
+                </div>
+            </aside>
+
+        </main>
     </div>
-  </div>
 
-  <!-- 中：畫布 -->
-  <div class="panel canvas-wrap">
-    <h6 class="w-100">畫布（固定尺寸，最終會對齊你的醫療 UI）</h6>
-    <div id="canvas" class="canvas">
-      <div class="ghost"></div>
-    </div>
-  </div>
+    <script>
+        // 例如：
+        // const videoElement = document.getElementById('endoscope-video');
+        // const snapshotBtn = document.getElementById('snapshot-btn');
+        //
+        // ... 您所有的內視鏡邏輯 ...
+        //
+        // snapshotBtn.addEventListener('click', () => {
+        //    ... 執行拍照 ...
+        // });
 
-  <!-- 右：屬性/文件 -->
-  <div class="panel right">
-    <h6>屬性</h6>
-    <div class="p-3" id="prop">
-      <div class="text-secondary">請先從畫布選擇一個元件。</div>
-    </div>
-    <h6>專案</h6>
-    <div class="p-3">
-      <button class="btn btn-ghost btn-sm" id="btn_save_local"><i class="bi bi-save2"></i> 儲存到瀏覽器</button>
-      <button class="btn btn-ghost btn-sm" id="btn_load_local"><i class="bi bi-folder2-open"></i> 從瀏覽器讀取</button>
-    </div>
-  </div>
-</div>
+        // 這裡是一個範例，讓滑桿能即時更新數值
+        document.querySelectorAll('.slider-control input[type="range"]').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const valueSpan = e.target.nextElementSibling;
+                if (valueSpan) {
+                    valueSpan.textContent = parseFloat(e.target.value).toFixed(2);
+                }
+            });
+        });
 
-<!-- 預覽輸出 -->
-<div class="preview-mask" id="mask">
-  <div class="preview">
-    <div class="preview-header">
-      <div>預覽 / 產生 HTML</div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-ghost btn-sm" id="btn_copy_html"><i class="bi bi-clipboard"></i> 複製 HTML</button>
-        <button class="btn btn-ghost btn-sm" id="btn_close_preview"><i class="bi bi-x-lg"></i> 關閉</button>
-      </div>
-    </div>
-    <div class="preview-body">
-      <div class="mb-2 small text-secondary">這是純前端版面（無功能），我會用你匯出的 JSON 把功能線路接上。</div>
-      <div id="html_out" class="code"></div>
-    </div>
-  </div>
-</div>
+    </script>
 
-<script>
-  // ====== 簡單 ID 生成 ======
-  const uid = ()=>'n'+Math.random().toString(36).slice(2,8);
-  const canvas = document.getElementById('canvas');
-  const prop   = document.getElementById('prop');
-  let current = null; // 目前選取的 node
-
-  // ====== palette → add node ======
-  document.querySelectorAll('.item').forEach(it=>{
-    it.addEventListener('click', ()=>{
-      const type = it.dataset.type;
-      addNode(type, 60, 60, 160, 56);
-    });
-  });
-
-  // ====== 建立節點 ======
-  function addNode(type, x, y, w, h, opts={}){
-    const el = document.createElement('div');
-    el.className = 'node';
-    el.dataset.type = type;
-    el.dataset.id = opts.id || uid();
-    el.style.left = (opts.x ?? x)+'px';
-    el.style.top  = (opts.y ?? y)+'px';
-    el.style.width  = (opts.w ?? w)+'px';
-    el.style.height = (opts.h ?? h)+'px';
-
-    // 內容
-    el.innerHTML = renderInner(type, opts);
-
-    // resize handle
-    const handle = document.createElement('div');
-    handle.className = 'handle';
-    el.appendChild(handle);
-
-    // 選取
-    el.addEventListener('pointerdown', (e)=>{
-      select(el); e.stopPropagation();
-    });
-
-    canvas.appendChild(el);
-    makeInteract(el);
-    select(el);
-  }
-
-  function renderInner(type, opts){
-    const txt = opts.text ?? ({
-      button:'按鈕', iconbtn:'', slider:'', toggle:'OFF', label:'標籤',
-      panel:'', video:''
-    }[type] || '');
-    const icon = opts.icon ?? 'bi-camera';
-    const bg   = opts.bg   ?? '';
-    const fg   = opts.fg   ?? '';
-    const bd   = opts.bd   ?? '';
-
-    const style = `style="${bg?`background:${bg};`:''}${fg?`color:${fg};`:''}${bd?`border-color:${bd};`:''}"`;
-
-    if(type==='button') return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center">${txt}</div>`;
-    if(type==='iconbtn')return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center"><i class="bi ${icon} fs-4"></i></div>`;
-    if(type==='slider') return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center"><div class="w-75"><input type="range" class="form-range"></div></div>`;
-    if(type==='toggle') return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center">${txt}</div>`;
-    if(type==='label')  return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center">${txt}</div>`;
-    if(type==='panel')  return `<div ${style} class="w-100 h-100"></div>`;
-    if(type==='video')  return `<div ${style} class="w-100 h-100 d-flex align-items-center justify-content-center"><i class="bi bi-camera-video fs-2 text-secondary"></i></div>`;
-    return txt;
-  }
-
-  // ====== interact.js：拖曳+縮放 ======
-  function makeInteract(el){
-    interact(el).draggable({
-      listeners:{
-        move(ev){
-          const x = (parseFloat(el.style.left)||0)+ev.dx;
-          const y = (parseFloat(el.style.top)||0)+ev.dy;
-          el.style.left = Math.max(0, Math.min(canvas.clientWidth - el.clientWidth, x))+'px';
-          el.style.top  = Math.max(0, Math.min(canvas.clientHeight- el.clientHeight,y))+'px';
-        }
-      }
-    }).resizable({
-      edges:{bottom:true, right:true},
-      listeners:{
-        move (ev) {
-          let {width, height} = ev.rect;
-          width = Math.max(40, Math.min(canvas.clientWidth - el.offsetLeft, width));
-          height= Math.max(32, Math.min(canvas.clientHeight- el.offsetTop, height));
-          el.style.width = width + 'px';
-          el.style.height= height+ 'px';
-        }
-      }
-    });
-  }
-
-  // ====== 選取 + 屬性面板 ======
-  canvas.addEventListener('pointerdown', ()=>select(null));
-  function select(el){
-    if(current) current.classList.remove('selected');
-    current = el;
-    if(el) el.classList.add('selected');
-    renderProp(el);
-  }
-
-  function nodeData(el){
-    return {
-      id: el.dataset.id,
-      type: el.dataset.type,
-      x: parseInt(el.style.left||0),
-      y: parseInt(el.style.top||0),
-      w: parseInt(el.style.width||0),
-      h: parseInt(el.style.height||0),
-      // 額外屬性（從子內容抓）
-      text: el.querySelector('.w-100')?.innerText ?? '',
-      icon: (el.querySelector('.bi')?.className || '').split(' ').find(c=>c.startsWith('bi-')) || '',
-      bg: el.querySelector('.w-100')?.style.background || '',
-      fg: el.querySelector('.w-100')?.style.color || '',
-      bd: el.querySelector('.w-100')?.style.borderColor || ''
-    }
-  }
-
-  function renderProp(el){
-    if(!el){ prop.innerHTML = '<div class="text-secondary">請從畫布選擇一個元件。</div>'; return; }
-    const d = nodeData(el);
-    prop.innerHTML = `
-      <div class="mb-2">
-        <label class="form-label">ID</label>
-        <input id="p_id" class="form-control form-control-sm" value="${d.id}">
-      </div>
-      <div class="mb-2">
-        <label class="form-label">類型</label>
-        <input class="form-control form-control-sm" value="${d.type}" disabled>
-      </div>
-      <div class="mb-2">
-        <label class="form-label">文字</label>
-        <input id="p_text" class="form-control form-control-sm" value="${d.text}">
-      </div>
-      <div class="mb-2">
-        <label class="form-label">圖示（Bootstrap Icons，例如 bi-camera ）</label>
-        <input id="p_icon" class="form-control form-control-sm" value="${d.icon}">
-      </div>
-      <div class="row g-2">
-        <div class="col-4">
-          <label class="form-label">背景色</label>
-          <input id="p_bg" type="color" class="form-control form-control-color" value="${cssColor(d.bg) || '#1c222b'}">
-        </div>
-        <div class="col-4">
-          <label class="form-label">字色</label>
-          <input id="p_fg" type="color" class="form-control form-control-color" value="${cssColor(d.fg) || '#ffffff'}">
-        </div>
-        <div class="col-4">
-          <label class="form-label">邊框色</label>
-          <input id="p_bd" type="color" class="form-control form-control-color" value="${cssColor(d.bd) || '#3a4454'}">
-        </div>
-      </div>
-      <div class="row g-2 mt-2">
-        <div class="col-6">
-          <label class="form-label">X</label>
-          <input id="p_x" type="number" class="form-control form-control-sm" value="${d.x}">
-        </div>
-        <div class="col-6">
-          <label class="form-label">Y</label>
-          <input id="p_y" type="number" class="form-control form-control-sm" value="${d.y}">
-        </div>
-        <div class="col-6 mt-2">
-          <label class="form-label">寬</label>
-          <input id="p_w" type="number" class="form-control form-control-sm" value="${d.w}">
-        </div>
-        <div class="col-6 mt-2">
-          <label class="form-label">高</label>
-          <input id="p_h" type="number" class="form-control form-control-sm" value="${d.h}">
-        </div>
-      </div>
-      <div class="d-flex gap-2 mt-3">
-        <button id="p_apply" class="btn btn-ghost btn-sm"><i class="bi bi-check2"></i> 套用</button>
-        <button id="p_delete" class="btn btn-ghost btn-sm"><i class="bi bi-x-lg"></i> 刪除</button>
-      </div>
-    `;
-
-    // 綁定
-    document.getElementById('p_apply').onclick = ()=>{
-      const id = document.getElementById('p_id').value.trim();
-      el.dataset.id = id || el.dataset.id;
-      el.style.left = (parseInt(document.getElementById('p_x').value)||0)+'px';
-      el.style.top  = (parseInt(document.getElementById('p_y').value)||0)+'px';
-      el.style.width= (parseInt(document.getElementById('p_w').value)||100)+'px';
-      el.style.height=(parseInt(document.getElementById('p_h').value)||40)+'px';
-
-      const text = document.getElementById('p_text').value;
-      const icon = document.getElementById('p_icon').value || '';
-      const bg   = document.getElementById('p_bg').value;
-      const fg   = document.getElementById('p_fg').value;
-      const bd   = document.getElementById('p_bd').value;
-
-      // 重新渲染子內容
-      const data = nodeData(el);
-      data.text = text; data.icon = icon; data.bg=bg; data.fg=fg; data.bd=bd;
-      el.innerHTML = renderInner(el.dataset.type, data)+'<div class="handle"></div>';
-    };
-
-    document.getElementById('p_delete').onclick = ()=>{
-      el.remove(); select(null);
-    };
-  }
-
-  function cssColor(v){
-    if(!v) return '';
-    const m = v.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
-    if(m){ // 轉 hex
-      const toHex = n => ('0'+parseInt(n).toString(16)).slice(-2);
-      return '#'+toHex(m[1])+toHex(m[2])+toHex(m[3]);
-    }
-    return v.startsWith('#')?v:'#1c222b';
-  }
-
-  // ====== 匯出 / 匯入 ======
-  function exportJSON(){
-    const arr = [...canvas.querySelectorAll('.node')].map(nodeData);
-    return { meta:{w:canvas.clientWidth,h:canvas.clientHeight,ts:Date.now()}, nodes:arr };
-  }
-  function importJSON(obj){
-    canvas.querySelectorAll('.node').forEach(n=>n.remove());
-    (obj.nodes||[]).forEach(n=> addNode(n.type, n.x, n.y, n.w, n.h, n));
-  }
-
-  document.getElementById('btn_export').onclick = ()=>{
-    const data = exportJSON();
-    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'ui-layout.json';
-    a.click();
-  };
-
-  document.getElementById('file_import').onchange = async(e)=>{
-    const f = e.target.files[0]; if(!f) return;
-    const txt = await f.text();
-    importJSON(JSON.parse(txt));
-  };
-
-  // localStorage
-  document.getElementById('btn_save_local').onclick = ()=>{
-    localStorage.setItem('medi_ui_layout', JSON.stringify(exportJSON()));
-    alert('已存到瀏覽器。');
-  };
-  document.getElementById('btn_load_local').onclick = ()=>{
-    const txt = localStorage.getItem('medi_ui_layout');
-    if(!txt) return alert('找不到已儲存的資料。');
-    importJSON(JSON.parse(txt));
-  };
-
-  document.getElementById('btn_clear').onclick = ()=>{
-    if(confirm('清空畫布？')){ canvas.querySelectorAll('.node').forEach(n=>n.remove()); select(null); }
-  };
-
-  // ====== 預覽 / 產生 HTML ======
-  const mask = document.getElementById('mask');
-  const out  = document.getElementById('html_out');
-  document.getElementById('btn_preview').onclick = ()=>{
-    const data = exportJSON();
-    out.textContent = generateHTML(data);
-    mask.style.display='flex';
-  };
-  document.getElementById('btn_close_preview').onclick = ()=> mask.style.display='none';
-  document.getElementById('btn_copy_html').onclick = ()=>{
-    navigator.clipboard.writeText(out.textContent).then(()=>alert('已複製 HTML'));
-  };
-
-  function generateHTML(data){
-    // 產生純畫面（之後我會依這份 JSON 把功能接上）
-    const nodes = (data.nodes||[]).map(n=>{
-      const style = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;`;
-      if(n.type==='video'){
-        return `<div class="node" style="${style}background:#000;border-radius:12px"></div>`;
-      }
-      if(n.type==='button'){
-        return `<button class="node" style="${style}">${n.text||'按鈕'}</button>`;
-      }
-      if(n.type==='iconbtn'){
-        return `<button class="node" style="${style}"><i class="bi ${n.icon||'bi-camera'}"></i></button>`;
-      }
-      if(n.type==='slider'){
-        return `<div class="node" style="${style}"><input type="range" class="form-range w-75 mx-auto"></div>`;
-      }
-      if(n.type==='toggle'){
-        return `<div class="node" style="${style}">${n.text||'ON/OFF'}</div>`;
-      }
-      if(n.type==='label'){
-        return `<div class="node" style="${style}">${n.text||'標籤'}</div>`;
-      }
-      if(n.type==='panel'){
-        return `<div class="node" style="${style}"></div>`;
-      }
-      return '';
-    }).join('\n');
-
-    return `<!doctype html>
-<html lang="zh-Hant"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-  body{margin:0;background:#0a0d10;color:#fff}
-  .stage{position:relative;width:${data.meta?.w||1200}px;height:${data.meta?.h||680}px;margin:24px auto;background:#10151c;border:1px solid #263140;border-radius:16px}
-  .node{position:absolute;display:flex;align-items:center;justify-content:center;background:#1c222b;border:1px solid #3a4454;border-radius:12px;color:#fff}
-</style>
-</head><body>
-<div class="stage">
-${nodes}
-</div>
-</body></html>`;
-  }
-</script>
 </body>
 </html>
