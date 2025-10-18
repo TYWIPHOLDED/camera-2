@@ -1,384 +1,402 @@
-<!doctype html>
+# Re-create the packaged web app and zip it.
+import os, zipfile, textwrap
+
+root = "/mnt/data/MediCamWeb_Pack_v1"
+os.makedirs(root, exist_ok=True)
+
+index_html = """<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MediVisionTech • Web Viewer</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MediVisionTech Web OEM</title>
 <style>
 :root{
-  --bg:#0b0b0b; --panel:#121212; --line:#2a2a2a; --txt:#eaeaea;
-  --accent:#6ee86b; --muted:#9aa0a6; --danger:#ff4d4d;
-  --btn-bg:#1e1e1e; --btn-border:#2e2e2e; --chip:#232323;
+  --bg:#0b0b0b;
+  --fg:#eaeaea;
+  --muted:#9aa0a6;
+  --line:#222;
+  --card:#111;
+  --brand:#21c17a; /* apple green */
+  --dull:#2a2a2a;
+  --btn:#16a764;
+  --danger:#ff4d4d;
 }
-html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
-.app{display:grid;grid-template-rows:56px 1fr;grid-template-columns:260px 1fr 360px;grid-template-areas:
-  "top top top" "left center right";height:100%;gap:0}
-.top{grid-area:top;display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
-.brand{font-weight:800;letter-spacing:.5px}
-.select, .btn{background:#111;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 12px}
-.btn{cursor:pointer}
-.left{grid-area:left;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:16px;padding:14px 10px}
-.tool{width:54px;height:54px;border:2px solid var(--btn-border);border-radius:12px;display:grid;place-items:center;background:var(--btn-bg);cursor:pointer;transition:.15s}
-.tool:hover{border-color:#3a3a3a;transform:translateY(-1px)}
-.sliderV{height:220px;margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px}
-.sliderV input{writing-mode:bt-lr;-webkit-appearance: slider-vertical;height:200px;width:8px}
-.center{grid-area:center;display:grid;place-items:center;overflow:hidden}
-.canvas-wrap{position:relative;width:min(78vmin,820px);aspect-ratio:1/1;border-radius:14px;background:#000;border:1px solid #1a1a1a;box-shadow:0 0 0 1px #0f0f0f inset}
-canvas{width:100%;height:100%;display:block;border-radius:14px}
-.rec-dot{position:absolute;right:10px;top:10px;width:14px;height:14px;border-radius:50%;background:var(--danger);box-shadow:0 0 0 3px rgba(255,77,77,.15);display:none}
-#recText{position:absolute;right:34px;top:8px;font-weight:800;color:var(--danger);display:none;letter-spacing:1px}
-@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.18}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr}
+.top{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:#0f0f0f;
+}
+.title{font-weight:700;letter-spacing:.5px;margin-right:10px}
+.select, .btn{
+  background:#0f0f0f;border:1px solid #2a2a2a;border-radius:10px;padding:8px 12px;color:var(--fg);
+}
+.btn{cursor:pointer;transition:.15s ease;user-select:none}
+.btn:hover{border-color:#3a3a3a}
+.btn.primary{background:var(--btn);border-color:var(--btn);color:#fff}
+.btn.ghost{background:#111}
+.btn.small{padding:6px 10px;border-radius:8px}
+.wrap{display:grid;grid-template-columns:72px 1fr 320px;gap:14px;padding:12px;height:100%}
+.toolbar{
+  display:flex;flex-direction:column;gap:12px;align-items:center;padding-top:10px;
+}
+.iconbtn{
+  width:56px;height:56px;border-radius:14px;border:1px solid #2a2a2a;display:grid;place-items:center;
+  background:#111;cursor:pointer;transition:.15s;user-select:none;
+}
+.iconbtn:hover{border-color:#3a3a3a}
+.iconbtn svg{width:28px;height:28px;fill:#e6e6e6}
+/* rotation slider */
+.sidecol{display:flex;flex-direction:column;align-items:center}
+.vslider{height:260px;display:flex;flex-direction:column;align-items:center;margin-top:8px}
+.vslider input{writing-mode:bt-lr;-webkit-appearance:slider-vertical; width:24px;height:220px}
+.vslider .lbl{font-size:12px;color:var(--muted);margin-top:6px}
+/* canvas */
+.stage{position:relative;display:grid;place-items:center}
+.box{position:relative;background:#000;border-radius:14px;overflow:hidden;border:1px solid #1d1d1d;max-width:90vh;aspect-ratio:1/1}
+canvas{display:block; width:100%; height:100%}
+.thumbbar{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:10px}
+.thumbbar .slot{width:68px;height:48px;border:1px solid #3a3a3a;border-radius:10px;background:#0e0e0e;overflow:hidden}
+.thumbbar img{width:100%;height:100%;object-fit:cover}
+.rec-dot{position:absolute;right:10px;top:10px;width:14px;height:14px;border-radius:20px;background:var(--danger);border:2px solid #fff;display:none}
+.toast{
+  position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+  background:rgba(15,15,15,.9);padding:8px 12px;border:1px solid #2a2a2a;border-radius:10px;color:#ddd;display:none
+}
+@keyframes blink {0%,49%{opacity:1} 50%,100%{opacity:.15}}
 .rec-dot.blink{animation:blink .9s linear infinite}
-#recText.blink{animation:blink .9s linear infinite}
-.thumb-bar{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:10px}
-.thumb{width:70px;height:52px;border:2px solid #2b2b2b;border-radius:10px;background:#111;overflow:hidden}
-.thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.right{grid-area:right;border-left:1px solid var(--line);display:flex;flex-direction:column}
-.section{padding:12px 14px;border-bottom:1px solid var(--line)}
-.section h3{margin:4px 0 12px 0;font-size:14px;letter-spacing:.3px;color:#cfcfcf}
-.row{display:grid;grid-template-columns:120px 1fr;align-items:center;gap:14px;margin:10px 0}
-.row input[type="range"]{width:100%}
-.preset-bar{display:flex;flex-wrap:wrap;gap:6px}
-.preset-btn{background:var(--chip);border:1px solid #2b2b2b;border-radius:10px;padding:8px 10px;color:#ddd;cursor:pointer}
-.preset-btn.active{outline:2px solid var(--accent);color:#fff}
-.small{color:var(--muted);font-size:12px}
-.actions{display:flex;flex-direction:column;gap:14px;padding:12px 14px}
-.actionBtn{display:flex;gap:10px;align-items:center;justify-content:center;border:2px solid var(--btn-border);background:var(--btn-bg);border-radius:14px;height:64px;cursor:pointer}
-.actionBtn:hover{border-color:#3a3a3a}
-.toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:#1e1e1e;border:1px solid #333;padding:8px 12px;border-radius:10px;display:none}
+#recText{position:absolute;right:34px;top:10px;font-weight:800;color:#ff4d4d;display:none;letter-spacing:1px}
+/* right panel (actions + thumbnails) */
+.right{display:flex;flex-direction:column;gap:16px}
+.panel{
+  border:1px solid #222;border-radius:14px;padding:12px;background:#0f0f0f;
+}
+.actions{display:flex;flex-direction:column;gap:14px}
+.actionbtn{display:grid;place-items:center;border:1px solid #2a2a2a;border-radius:14px;background:#111;width:92px;height:88px;cursor:pointer}
+.actionbtn svg{width:36px;height:36px;fill:#e6e6e6}
+.kv{display:flex;align-items:center;gap:8px}
+.preset-bar{display:flex;flex-wrap:wrap;gap:8px}
+.preset-btn{border:1px solid #2f2f2f;border-radius:9px;background:#131313;color:#ddd;padding:6px 10px;cursor:pointer}
+.preset-btn.active{border-color:var(--brand);color:#d9ffe9;background:#11231b}
+.group{display:flex;flex-direction:column;gap:12px}
+.row{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center}
+.range{accent-color:var(--brand);width:100%}
+.small{font-size:12px;color:#a7a7a7}
+/* settings drawer */
+.drawer{position:fixed;right:0;top:56px;bottom:0;width:380px;background:#0f0f0f;border-left:1px solid #1f1f1f;padding:16px 16px 20px;transform:translateX(105%);transition:.2s ease;overflow:auto;z-index:15}
+.drawer.show{transform:translateX(0)}
+.closeX{position:fixed;right:16px;top:8px;z-index:16}
 .lang{min-width:220px}
-.find{margin-left:auto}
-.icon{width:24px;height:24px}
+.badge{background:#193; color:#9f9; border:1px solid #295; font-size:11px; padding:2px 6px; border-radius:999px}
+.note{font-size:12px;color:#9aa0a6}
+/* utility */
+.hide{display:none}
+section h4{margin:8px 0 2px 0;font-size:13px;color:#bdbdbd}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="top">
-    <div class="brand">MediVisionTech</div>
-    <select id="lang" class="select lang">
+    <div class="title">MediVisionTech</div>
+    <select id="selLang" class="select lang">
       <option value="en">English</option>
-      <option value="zh">中文</option>
+      <option value="zh">繁體中文</option>
     </select>
-    <div class="select" id="camSelWrap">
-      <select id="camSel" class="select"></select>
-    </div>
-    <button class="btn find" id="btnFind">Find device</button>
-    <button class="btn" id="btnSettings">Settings</button>
+    <div style="flex:1"></div>
+    <label class="kv">
+      <span id="lblSelCam">Select camera</span>
+      <select id="selCam" class="select"></select>
+    </label>
+    <button id="btnFind" class="btn small" title="Rescan">Find device</button>
+    <button id="btnSettings" class="btn small">Settings</button>
   </div>
 
-  <!-- 左：工具列 -->
-  <div class="left">
-    <div class="tool" id="btnRotL" title="逆時針 10°">
-      <svg class="icon" viewBox="0 0 24 24"><path fill="#e6e6e6" d="M7 7v4H3V3h8v4H7zm7 14a7 7 0 1 0-7-7h2a5 5 0 1 1 5 5v2Z"/></svg>
-    </div>
-    <div class="tool" id="btnRotR" title="順時針 10°">
-      <svg class="icon" viewBox="0 0 24 24"><path fill="#e6e6e6" d="M17 7V3h-8v4h4v4h4V7zM10 21a7 7 0 1 0-7-7h2a5 5 0 1 1 5 5v2z"/></svg>
-    </div>
-    <div class="tool" id="btnFlipH" title="左右鏡像">
-      <svg class="icon" viewBox="0 0 24 24"><path fill="#e6e6e6" d="M3 5h8v14H3zM13 5h8v14h-8z"/></svg>
-    </div>
-    <div class="tool" id="btnFlipV" title="上下鏡像">
-      <svg class="icon" viewBox="0 0 24 24"><path fill="#e6e6e6" d="M5 3h14v8H5zM5 13h14v8H5z"/></svg>
-    </div>
-    <div class="tool" id="btnReset" title="重設影像">
-      <svg class="icon" viewBox="0 0 24 24"><path fill="#e6e6e6" d="M12 6V3L8 7l4 4V8a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
-    </div>
-    <div class="sliderV">
-      <input id="rotSlider" type="range" min="-180" max="180" value="0" step="1">
-      <div class="small">Rotation <span id="rotDeg">0°</span></div>
-    </div>
-  </div>
-
-  <!-- 中：畫布 -->
-  <div class="center">
-    <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="cv" width="624" height="624"></canvas>
-      <div class="rec-dot" id="recDot"></div>
-      <div id="recText">REC</div>
-      <div class="toast" id="toast">Saved</div>
-      <div class="thumb-bar" id="thumbBar"></div>
-    </div>
-  </div>
-
-  <!-- 右：動作 + 設定 -->
-  <div class="right">
-    <div class="actions">
-      <div class="actionBtn" id="btnShot">
-        <svg class="icon" viewBox="0 0 24 24"><path fill="#e6e6e6" d="M20 5h-3.6l-1.2-2H8.8L7.6 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm-8 14a6 6 0 1 1 0-12 6 6 0 0 1 0 12Z"/></svg>
-        <div>截圖</div>
+  <div class="wrap">
+    <!-- left tool rail -->
+    <div class="sidecol">
+      <div class="toolbar">
+        <div class="iconbtn" id="btnRotL" title="Rotate -10°">
+          <svg viewBox="0 0 24 24"><path d="M15.55 5.55C14.5 4.5 13.11 4 11.66 4c-3.04 0-5.5 2.46-5.5 5.5S8.62 15 11.66 15c2.73 0 5-1.97 5.41-4.55h-1.52c-.4 1.72-1.96 3-3.89 3-2.21 0-4-1.79-4-4s1.79-4 4-4c1.1 0 2.1.45 2.83 1.17L12.16 9H18V3.16l-2.45 2.39z"/></svg>
+        </div>
+        <div class="iconbtn" id="btnRotR" title="Rotate +10°">
+          <svg viewBox="0 0 24 24"><path d="M8.45 5.55 6 3.16V9h5.84L9.51 6.72A3.972 3.972 0 0 1 12.34 5c2.21 0 4 1.79 4 4s-1.79 4-4 4c-1.93 0-3.49-1.28-3.89-3H6.93c.41 2.58 2.68 4.55 5.41 4.55 3.04 0 5.5-2.46 5.5-5.5S15.38 4 12.34 4c-1.45 0-2.84.5-3.89 1.55z"/></svg>
+        </div>
+        <div class="iconbtn" id="btnFlipH" title="Mirror L/R">
+          <svg viewBox="0 0 24 24"><path d="M7 3h3v18H7V3zm7 0h3v18h-3V3zM4 3h2v18H4V3zm12 0h4v18h-4V3z"/></svg>
+        </div>
+        <div class="iconbtn" id="btnFlipV" title="Mirror U/D">
+          <svg viewBox="0 0 24 24"><path d="M3 7h18v3H3V7zm0 7h18v3H3v-3zM3 4h18v2H3V4zm0 12h18v4H3v-4z"/></svg>
+        </div>
+        <div class="iconbtn" id="btnReset" title="Reset">
+          <svg viewBox="0 0 24 24"><path d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 0 1-5 5 5 5 0 0 1-4.9-4h-2.1A7.1 7.1 0 0 0 12 22c3.87 0 7-3.13 7-7s-3.13-7-7-7z"/></svg>
+        </div>
       </div>
-      <div class="actionBtn" id="btnRec">
-        <svg class="icon" id="iconRec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="#ff2d2d"/></svg>
-        <div>錄影 / 停止</div>
-      </div>
-      <div class="actionBtn" id="btnDrawer">
-        <svg class="icon" viewBox="0 0 24 24"><path fill="#e6e6e6" d="M3 7h18v2H3V7m0 4h18v2H3v-2m0 4h18v2H3v-2Z"/></svg>
-        <div>設定</div>
+      <div class="vslider">
+        <input id="rotFine" type="range" min="-180" max="180" step="1" value="0" orient="vertical"/>
+        <div class="lbl" id="lblRot">Rotation 0°</div>
       </div>
     </div>
 
-    <div class="section" id="drawer" style="display:none">
-      <h3>設定 <span class="small" id="capInfo"></span></h3>
+    <!-- stage -->
+    <div class="stage">
+      <div class="box" id="box">
+        <video id="video" autoplay playsinline muted class="hide"></video>
+        <canvas id="cv"></canvas>
+        <div class="rec-dot" id="recDot"></div>
+        <div id="recText">REC</div>
+        <div class="thumbbar" id="thumbbar">
+          <div class="slot" id="shot1"></div>
+          <div class="slot" id="shot2"></div>
+          <div class="slot" id="shot3"></div>
+        </div>
+        <div class="toast" id="toast">Saved</div>
+      </div>
+    </div>
 
+    <!-- right -->
+    <div class="right">
+      <div class="panel">
+        <div class="actions">
+          <div class="actionbtn" id="btnSnap" title="拍照">
+            <svg viewBox="0 0 24 24"><path d="M20 5h-3.17l-1.84-2H9.01L7.17 5H4c-1.11 0-2 .89-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7c0-1.11-.89-2-2-2zm-8 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+          </div>
+          <div class="actionbtn" id="btnRec" title="錄影 / 停止">
+            <svg id="iconRec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="#ff2d2d"/></svg>
+          </div>
+          <div class="actionbtn" id="btnSettings2" title="設定">
+            <svg viewBox="0 0 24 24"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.05-1.6a.5.5,0,0,0,.12-.64l-1.94-3.36a.5.5,0,0,0-.6-.22l-2.4,1a5.19,5.19,0,0,0-1.64-.95l-.36-2.54A.5.5,0,0,0,13.92,2H10.08a.5.5,0,0,0-.49.41L9.23,5a5.19,5.19,0,0,0-1.64.95l-2.4-1a.5.5,0,0,0-.6.22L2.65,8.53a.5.5,0,0,0,.12.64l2.05,1.6a4.08,4.08,0,0,0,0,1.88l-2.05,1.6a.5.5,0,0,0-.12.64l1.94,3.36a.5.5,0,0,0,.6.22l2.4-1a5.19,5.19,0,0,0,1.64.95l.36,2.54a.5.5,0,0,0,.49.41h3.84a.5.5,0,0,0,.49-.41l.36-2.54a5.19,5.19,0,0,0,1.64-.95l2.4,1a.5.5,0,0,0,.6-.22l1.94-3.36a.5.5,0,0,0-.12-.64Zm-7.14,2.56A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="small" id="lblLatest">Latest shots</div>
+        <div class="thumbbar" id="thumbCol"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- settings drawer -->
+  <button class="btn small closeX" id="btnCloseDrawer">✕</button>
+  <div class="drawer" id="drawer">
+    <div class="group">
+      <div class="row"><h3 style="margin:0">設定 <span class="badge">FULL</span></h3></div>
+    </div>
+
+    <!-- 近拍與重置 -->
+    <div class="group">
       <div class="row" style="grid-template-columns:130px auto;">
         <label>近拍模式（8mm）</label>
         <label style="display:flex;align-items:center;gap:10px;">
           <input id="chkMacro" type="checkbox">
-          <span class="small">自動調光／Gamma／邊緣強化（防閃爍）</span>
+          <span class="small">自動調校亮度 / Gamma / 邊緣強化（防閃爍）</span>
         </label>
       </div>
-
-      <div class="row"><label>亮度</label><input id="sBright" type="range" min="70" max="150" value="110"></div>
-      <div class="row"><label>對比</label><input id="sContrast" type="range" min="80" max="160" value="120"></div>
-      <div class="row"><label>飽和</label><input id="sSat" type="range" min="70" max="160" value="110"></div>
-      <div class="row"><label>銳利</label><input id="sSharp" type="range" min="10" max="60"  value="30"></div>
-      <div class="row"><label>Gamma</label><input id="sGamma" type="range" min="80" max="140" value="120"></div>
-
-      <div class="row" style="grid-template-columns:130px 1fr;">
-        <label>我的預設</label>
-        <div id="presetList" class="preset-bar"></div>
+      <div class="row" style="grid-template-columns:130px auto;">
+        <label>相機自動控制</label>
+        <div class="small" id="capInfo">嘗試啟用相機的 auto-exposure / auto-focus…</div>
       </div>
-      <div class="row" style="grid-template-columns:130px 1fr;">
-        <label>管理</label>
-        <div class="preset-bar">
-          <button class="preset-btn" id="btnAddPreset">新增預設</button>
-          <button class="preset-btn" id="btnSaveOver">儲存到選中</button>
-          <button class="preset-btn" id="btnRename">重新命名</button>
-          <button class="preset-btn" id="btnDelete">刪除</button>
-          <button class="preset-btn" id="btnResetAll">重置設定</button>
-        </div>
+      <div class="row" style="grid-template-columns:130px auto;">
+        <label>重置設定</label>
+        <button class="preset-btn" id="btnResetAll">重置為預設</button>
       </div>
-      <div class="small">預設保存在瀏覽器（localStorage）。</div>
     </div>
+
+    <section>
+      <h4>影像參數</h4>
+      <div class="group">
+        <div class="row"><label id="lbBri">亮度</label><input id="sBright" type="range" min="50" max="150" value="110" class="range"></div>
+        <div class="row"><label id="lbCon">對比度</label><input id="sContrast" type="range" min="50" max="160" value="120" class="range"></div>
+        <div class="row"><label id="lbSat">飽和度</label><input id="sSat" type="range" min="70" max="160" value="110" class="range"></div>
+        <div class="row"><label id="lbSha">銳利度</label><input id="sSharp" type="range" min="10" max="60" value="30" class="range"></div>
+        <div class="row"><label>Gamma</label><input id="sGamma" type="range" min="80" max="140" value="120" class="range"></div>
+      </div>
+    </section>
+
+    <section>
+      <h4>我的預設</h4>
+      <div class="group" id="presetArea">
+        <div class="row" style="grid-template-columns:100px 1fr;">
+          <label>清單</label>
+          <div id="presetList" class="preset-bar"></div>
+        </div>
+        <div class="row" style="grid-template-columns:100px 1fr;">
+          <label>管理</label>
+          <div class="preset-bar">
+            <button class="preset-btn" id="btnAddPreset">新增預設</button>
+            <button class="preset-btn" id="btnSaveOver">儲存到選中</button>
+            <button class="preset-btn" id="btnRename">重新命名</button>
+            <button class="preset-btn" id="btnDelete">刪除</button>
+          </div>
+        </div>
+        <div class="note">預設保存在瀏覽器（localStorage）。</div>
+      </div>
+    </section>
   </div>
 </div>
 
 <script>
-/* ====== 基本變數 ====== */
-const video = document.createElement('video'); video.playsInline = true; video.muted = true; video.autoplay = true;
-const cv = document.getElementById('cv'), ctx = cv.getContext('2d',{willReadFrequently:true});
-const wrap=document.getElementById('canvasWrap');
-const recDot=document.getElementById('recDot'), recText=document.getElementById('recText'), toastEl=document.getElementById('toast');
-const btnDrawer=document.getElementById('btnDrawer'), drawer=document.getElementById('drawer');
-const sBright=byId('sBright'), sContrast=byId('sContrast'), sSat=byId('sSat'), sSharp=byId('sSharp'), sGamma=byId('sGamma');
-const rotSlider=byId('rotSlider'), rotDeg=byId('rotDeg');
-const chkMacro=byId('chkMacro'); const capInfo=byId('capInfo');
-const camSel=byId('camSel'); const langSel=byId('lang');
-let stream=null, recording=false, recorder=null, chunks=[]; let t0=0;
-
-/* ====== 初始化 ====== */
-(async function init(){
-  await refreshCams(); await openCam();
-  enableNativeAutoControls();
-  loop();
-})();
-byId('btnFind').onclick=()=>refreshCams();
-byId('btnSettings').onclick=()=>toggleDrawer(true);
-btnDrawer.onclick=()=>toggleDrawer();
-
-/* ====== 攝像頭 ====== */
-async function refreshCams(){
-  const list = await navigator.mediaDevices.enumerateDevices();
-  const cams = list.filter(d=>d.kind==='videoinput');
-  camSel.innerHTML = cams.map((d,i)=>`<option value="${d.deviceId}">${d.label||'Camera '+(i+1)}</option>`).join('');
-}
-async function openCam(){
-  try{
-    stream && stream.getTracks().forEach(t=>t.stop());
-    stream = await navigator.mediaDevices.getUserMedia({video:{deviceId: camSel.value?{exact:camSel.value}:undefined, width:{ideal:1280}, height:{ideal:720}}, audio:false});
-    video.srcObject = stream;
-  }catch(e){ alert('開啟攝影機失敗：'+e.message); }
-}
-camSel.onchange=async()=>{ await openCam(); enableNativeAutoControls(); }
-
-/* ====== 相機原生 AE/AF 能力（能用就開） ====== */
-async function enableNativeAutoControls() {
-  try {
-    if (!stream) return;
-    const track = stream.getVideoTracks()[0];
-    const caps = track.getCapabilities?.() || {};
-    const cons = {};
-    if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
-      cons.advanced = [{ exposureMode: 'continuous' }];
-    }
-    if (caps.focusMode && caps.focusMode.includes('continuous')) {
-      cons.advanced = [...(cons.advanced||[]), { focusMode: 'continuous' }];
-    }
-    if (Object.keys(cons).length) await track.applyConstraints(cons);
-    const msg = [];
-    if (cons.advanced?.some(x=>x.exposureMode==='continuous')) msg.push('AE');
-    if (cons.advanced?.some(x=>x.focusMode==='continuous'))   msg.push('AF');
-    capInfo.textContent = msg.length ? `原生已啟用：${msg.join(' / ')}` : '裝置無 AE/AF，使用軟體補償';
-  } catch(e) {
-    capInfo.textContent = '相機控制不支援，使用軟體補償';
-  }
-}
-
-/* ====== 工具列 ====== */
-let rot=0, flipH=1, flipV=1;
-byId('btnRotL').onclick=()=>{rot-=10; rotSlider.value=rot; rotDeg.textContent=rot+'°';};
-byId('btnRotR').onclick=()=>{rot+=10; rotSlider.value=rot; rotDeg.textContent=rot+'°';};
-byId('btnFlipH').onclick=()=>{flipH*=-1};
-byId('btnFlipV').onclick=()=>{flipV*=-1};
-byId('btnReset').onclick=()=>{
-  rot=0; flipH=1; flipV=1; rotSlider.value=0; rotDeg.textContent='0°';
-  sBright.value=110; sContrast.value=120; sSat.value=110; sSharp.value=30; sGamma.value=120;
+const T = {
+  en:{select:'Select camera', find:'Find device', settings:'Settings', latest:'Latest shots', rotation:'Rotation', saved:'Saved'},
+  zh:{select:'選擇鏡頭', find:'重新掃描', settings:'設定', latest:'最近的截圖', rotation:'旋轉', saved:'已儲存'}
 };
-rotSlider.oninput=()=>{rot=+rotSlider.value; rotDeg.textContent=rot+'°'};
+function applyLang(){
+  const lang = selLang.value;
+  document.getElementById('lblSelCam').textContent = T[lang].select;
+  document.getElementById('lblLatest').textContent = T[lang].latest;
+  document.getElementById('lblRot').textContent = T[lang].rotation + ' ' + rotFine.value + '°';
+  btnFind.textContent = T[lang].find;
+  btnSettings.textContent = T[lang].settings;
+}
+const selLang = document.getElementById('selLang'); selLang.onchange = applyLang;
 
-/* ====== 動作：截圖／錄影 ====== */
-const thumbBar=byId('thumbBar');
-byId('btnShot').onclick=()=>{
-  const url=cv.toDataURL('image/png');
-  const a=document.createElement('a'); a.href=url; a.download=`IMG_${Date.now()}.png`; a.click();
-  addThumb(url); toastOnce('已儲存截圖');
-};
-let recBlinkTimer=null;
-byId('btnRec').onclick=toggleRec;
-function toggleRec(){
-  if(recording){
-    recorder.stop(); recording=false;
-    clearInterval(recBlinkTimer); recBlinkTimer=null;
-    recDot.style.display='none'; recDot.classList.remove('blink');
-    recText.style.display='none'; recText.classList.remove('blink');
-    byId('iconRec').innerHTML='<circle cx="12" cy="12" r="6" fill="#ff2d2d"/>';
-  }else{
-    const s=cv.captureStream(30);
-    recorder=new MediaRecorder(s,{mimeType:'video/webm;codecs=vp9'});
-    chunks=[];
-    recorder.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
-    recorder.onstop=()=>{
-      const blob=new Blob(chunks,{type:'video/webm'}), url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=`VID_${Date.now()}.webm`; a.click();
-      setTimeout(()=>URL.revokeObjectURL(url),6000);
-      toastOnce('已儲存影片');
-    };
-    recorder.start(); recording=true;
-    byId('iconRec').innerHTML='<rect x="8" y="8" width="8" height="8" fill="#e6e6e6" rx="1"/>';
-    recDot.style.display='block'; recText.style.display='block';
-    recBlinkTimer = setInterval(()=>{
-      recDot.classList.toggle('blink'); recText.classList.toggle('blink');
-    }, 900);
-  }
-}
-function addThumb(url){
-  const box=document.createElement('div'); box.className='thumb';
-  box.innerHTML=`<img src="${url}">`; thumbBar.prepend(box);
-  while(thumbBar.children.length>4) thumbBar.lastChild.remove();
-}
-function toastOnce(msg){
-  toastEl.textContent=msg; toastEl.style.display='block';
-  setTimeout(()=>toastEl.style.display='none',1200);
-}
+const video=document.getElementById('video'), cv=document.getElementById('cv'), ctx=cv.getContext('2d',{willReadFrequently:true});
+const recDot=document.getElementById('recDot'), recText=document.getElementById('recText'), iconRec=document.getElementById('iconRec');
+const btnRec=document.getElementById('btnRec'), btnSnap=document.getElementById('btnSnap'), btnSettings=document.getElementById('btnSettings'), btnSettings2=document.getElementById('btnSettings2');
+const drawer=document.getElementById('drawer'), btnCloseDrawer=document.getElementById('btnCloseDrawer');
+const selCam=document.getElementById('selCam'), btnFind=document.getElementById('btnFind'), toast=document.getElementById('toast');
+const rotFine=document.getElementById('rotFine'), thumbCol=document.getElementById('thumbCol'), thumbbar=document.getElementById('thumbbar');
+const sBright= document.getElementById('sBright'), sContrast=document.getElementById('sContrast'), sSat=document.getElementById('sSat'), sSharp=document.getElementById('sSharp'), sGamma=document.getElementById('sGamma'), chkMacro=document.getElementById('chkMacro');
+const btnRotL=document.getElementById('btnRotL'), btnRotR=document.getElementById('btnRotR'), btnFlipH=document.getElementById('btnFlipH'), btnFlipV=document.getElementById('btnFlipV'), btnReset=document.getElementById('btnReset');
 
-/* ====== 設定抽屜 ====== */
-function toggleDrawer(forceOpen){
-  if(forceOpen===true){drawer.style.display='block';return}
-  drawer.style.display = drawer.style.display==='none'?'block':'none';
-}
-
-/* ====== 近拍模式（不閃爍自動調光 + 邊緣強化） ====== */
+let stream=null, recorder=null, chunks=[], recording=false;
+let angle=0, flipH=1, flipV=1;
 let autoQEnabled=false, emaY=0.5;
 const targetY=0.55, deadband=0.03, stepB=0.003, stepG=0.002;
 const tmpCv=document.createElement('canvas'); tmpCv.width=64; tmpCv.height=64;
-const tmpCtx=tmpCv.getContext('2d',{willReadFrequently:true});
-chkMacro.onchange=()=>{ autoQEnabled=chkMacro.checked; };
+const tmpCtx=tmpCv.getContext('2d',{ willReadFrequently:true });
+
+async function listCams(){
+  const devices=await navigator.mediaDevices.enumerateDevices();
+  const cams=devices.filter(d=>d.kind==='videoinput');
+  selCam.innerHTML=cams.map((d,i)=>`<option value="${d.deviceId}">${d.label||('Camera '+(i+1))}</option>`).join('');
+  if(!cams.length) alert('找不到鏡頭');
+}
+async function openCam(deviceId){
+  try{
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    stream=await navigator.mediaDevices.getUserMedia({
+      video: deviceId?{deviceId:{exact:deviceId}}:{width:{ideal:1280},height:{ideal:720}},
+      audio:false
+    });
+    video.srcObject=stream; await video.play(); resizeCanvas(); await enableNativeAutoControls();
+  }catch(e){ console.error(e); alert('開啟鏡頭失敗'); }
+}
+btnFind.onclick=async()=>{ await listCams(); if(selCam.value) openCam(selCam.value); };
+selCam.onchange=()=> openCam(selCam.value);
+
+async function enableNativeAutoControls(){
+  try{
+    if(!stream) return;
+    const track=stream.getVideoTracks()[0]; const caps=track.getCapabilities?.()||{}; const cons={};
+    if(caps.exposureMode && caps.exposureMode.includes('continuous')) cons.advanced=[{exposureMode:'continuous'}];
+    if(caps.focusMode && caps.focusMode.includes('continuous')) cons.advanced=[...(cons.advanced||[]),{focusMode:'continuous'}];
+    if(Object.keys(cons).length) await track.applyConstraints(cons);
+    const msg=[];
+    if(cons.advanced?.some(x=>x.exposureMode==='continuous')) msg.push('AE');
+    if(cons.advanced?.some(x=>x.focusMode==='continuous')) msg.push('AF');
+    document.getElementById('capInfo').textContent= msg.length?('相機原生已啟用：'+msg.join(' / ')):'相機無原生 AE/AF，將以軟體補償';
+  }catch(e){ document.getElementById('capInfo').textContent='相機控制不支援，使用軟體補償'; }
+}
+
+function resizeCanvas(){ const box=document.getElementById('box'); cv.width=box.clientWidth; cv.height=box.clientHeight; }
+window.addEventListener('resize', resizeCanvas);
+
+function draw(){
+  if(!video.videoWidth){ requestAnimationFrame(draw); return; }
+  const w=cv.width,h=cv.height; ctx.save(); ctx.clearRect(0,0,w,h);
+  ctx.translate(w/2,h/2); ctx.scale(flipH,flipV); ctx.rotate(angle*Math.PI/180);
+  const vw=video.videoWidth,vh=video.videoHeight, scale=Math.min(w/vw,h/vh);
+  const dw=vw*scale, dh=vh*scale; ctx.drawImage(video,-dw/2,-dh/2,dw,dh); ctx.restore();
+
+  // image adjustments
+  const b=+sBright.value/100, c=+sContrast.value/100, g=+sGamma.value/100, sh=+sSharp.value/100, sat=+sSat.value/100;
+  let img=ctx.getImageData(0,0,w,h), d=img.data;
+  for(let i=0;i<d.length;i+=4){
+    d[i]=Math.min(255,Math.pow(d[i]/255,1/g)*255);
+    d[i+1]=Math.min(255,Math.pow(d[i+1]/255,1/g)*255);
+    d[i+2]=Math.min(255,Math.pow(d[i+2]/255,1/g)*255);
+    d[i]=Math.min(255,Math.max(0,(d[i]-128)*c+128*b));
+    d[i+1]=Math.min(255,Math.max(0,(d[i+1]-128)*c+128*b));
+    d[i+2]=Math.min(255,Math.max(0,(d[i+2]-128)*c+128*b));
+    const r=d[i], gg=d[i+1], bb=d[i+2], y=0.2126*r+0.7152*gg+0.0722*bb;
+    d[i]=Math.min(255,y+(r-y)*sat); d[i+1]=Math.min(255,y+(gg-y)*sat); d[i+2]=Math.min(255,y+(bb-y)*sat);
+  }
+  ctx.putImageData(img,0,0);
+  autoQualityTick();
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+chkMacro.onchange=()=> autoQEnabled=chkMacro.checked;
 function autoQualityTick(){
   if(!autoQEnabled || !video || !video.videoWidth) return;
   tmpCtx.drawImage(video,0,0,tmpCv.width,tmpCv.height);
-  const d=tmpCtx.getImageData(0,0,tmpCv.width,tmpCv.height).data;
-  let sum=0; for(let i=0;i<d.length;i+=4){ sum+=(0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2])/255; }
-  const mean=sum/(tmpCv.width*tmpCv.height); emaY=emaY*0.85+mean*0.15;
-  const err=targetY-emaY;
-  if(Math.abs(err)>deadband){
+  const id=tmpCtx.getImageData(0,0,tmpCv.width,tmpCv.height).data; let sum=0;
+  for(let i=0;i<id.length;i+=4){ sum += (0.2126*id[i]+0.7152*id[i+1]+0.0722*id[i+2])/255; }
+  const mean=sum/(tmpCv.width*tmpCv.height); emaY=emaY*0.85+mean*0.15; const err=0.55-emaY;
+  if(Math.abs(err)>0.03){
     const dir=Math.sign(err);
-    let b=+sBright.value/100, g=+sGamma.value/100, c=+sContrast.value/100, sh=+sSharp.value/100;
-    b=Math.min(1.50,Math.max(0.70,b+dir*stepB));
-    g=Math.min(1.40,Math.max(0.80,g-dir*stepG)); // 亮時降gamma、暗時增gamma
-    c=Math.min(1.60,Math.max(0.80,c+dir*stepB*0.8));
-    sh=Math.min(0.60,Math.max(0.10,sh+dir*stepB*0.4));
-    sBright.value=Math.round(b*100); sGamma.value=Math.round(g*100);
-    sContrast.value=Math.round(c*100); sSharp.value=Math.round(sh*100);
+    const b=+sBright.value/100,g=+sGamma.value/100,c=+sContrast.value/100,sh=+sSharp.value/100;
+    sBright.value=Math.round(Math.min(1.50,Math.max(0.70,b+dir*0.003))*100);
+    sGamma.value=Math.round(Math.min(1.40,Math.max(0.80,g-dir*0.002))*100);
+    sContrast.value=Math.round(Math.min(1.60,Math.max(0.80,c+dir*0.0024))*100);
+    sSharp.value=Math.round(Math.min(0.60,Math.max(0.10,sh+dir*0.0012))*100);
   }
 }
 
-/* ====== 預設檔（可命名） ====== */
-const PRESET_KEY='presets_named';
-let presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'[]'); // [{id,name,vals}]
-const presetList=byId('presetList'); let selectedPresetId=null;
-function readVals(){return{bright:+sBright.value,contrast:+sContrast.value,sat:+sSat.value,sharp:+sSharp.value,gamma:+sGamma.value}}
+btnSettings.onclick=()=>drawer.classList.add('show');
+btnSettings2.onclick=()=>drawer.classList.add('show');
+btnCloseDrawer.onclick=()=>drawer.classList.remove('show');
+btnRotL.onclick=()=>{angle=(angle-10+360)%360;};
+btnRotR.onclick=()=>{angle=(angle+10)%360;};
+btnFlipH.onclick=()=>{flipH*=-1;};
+btnFlipV.onclick=()=>{flipV*=-1;};
+btnReset.onclick=()=>{angle=0;flipH=1;flipV=1;rotFine.value=0;document.getElementById('lblRot').textContent=T[selLang.value].rotation+' 0°'; sBright.value=110;sContrast.value=120;sSat.value=110;sSharp.value=30;sGamma.value=120;};
+rotFine.oninput=()=>{angle=+rotFine.value;document.getElementById('lblRot').textContent=T[selLang.value].rotation+' '+angle+'°';};
+
+function toastOnce(msg){ toast.textContent=msg||T[selLang.value].saved; toast.style.display='block'; setTimeout(()=>toast.style.display='none',1200); }
+btnSnap.onclick=()=>{
+  const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=`IMG_${Date.now()}.png`; a.click();
+  const img=new Image(); img.src=a.href; const slot=document.createElement('div'); slot.className='slot'; slot.appendChild(img); thumbCol.prepend(slot);
+  const bslot=document.createElement('div'); bslot.className='slot'; const i2=new Image(); i2.src=a.href; bslot.appendChild(i2); thumbbar.prepend(bslot); while(thumbbar.children.length>3) thumbbar.removeChild(thumbbar.lastChild);
+  toastOnce('已儲存截圖');
+};
+let recBlinkTimer=null;
+btnRec.onclick=()=>{
+  if(recording){ recorder.stop(); recording=false; clearInterval(recBlinkTimer); recBlinkTimer=null; recDot.style.display='none'; recDot.classList.remove('blink'); recText.style.display='none'; recText.classList.remove('blink'); iconRec.innerHTML='<circle cx=\"12\" cy=\"12\" r=\"6\" fill=\"#ff2d2d\"/>'; }
+  else{
+    const s=cv.captureStream(30); recorder=new MediaRecorder(s,{mimeType:'video/webm;codecs=vp9'}); chunks=[];
+    recorder.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
+    recorder.onstop=()=>{ const blob=new Blob(chunks,{type:'video/webm'}), url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`VID_${Date.now()}.webm`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),6000); toastOnce('已儲存影片'); };
+    recorder.start(); recording=true; iconRec.innerHTML='<rect x=\"8\" y=\"8\" width=\"8\" height=\"8\" fill=\"#e6e6e6\" rx=\"1\"/>'; recDot.style.display='block'; recText.style.display='block'; recBlinkTimer=setInterval(()=>{recDot.classList.toggle('blink'); recText.classList.toggle('blink');},900);
+  }
+};
+
+// presets
+const PRESET_KEY='presets_named'; let presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'[]'); const presetList=document.getElementById('presetList'); let selectedPresetId=null;
+function readCurrentVals(){return {bright:+sBright.value,contrast:+sContrast.value,sat:+sSat.value,sharp:+sSharp.value,gamma:+sGamma.value};}
 function writeVals(v){ if(!v) return; sBright.value=v.bright; sContrast.value=v.contrast; sSat.value=v.sat; sSharp.value=v.sharp; sGamma.value=v.gamma; }
-function savePresets(){ localStorage.setItem(PRESET_KEY,JSON.stringify(presets)); }
-function renderPresetChips(){
-  presetList.innerHTML='';
-  presets.forEach(p=>{
-    const b=document.createElement('button');
-    b.className='preset-btn'+(p.id===selectedPresetId?' active':''); b.textContent=p.name;
-    b.onclick=()=>{selectedPresetId=p.id; writeVals(p.vals); renderPresetChips();}
-    presetList.appendChild(b);
-  });
-}
-byId('btnAddPreset').onclick=()=>{ const name=prompt('預設名稱：','我的預設'); if(!name) return; const id=Date.now(); presets.push({id,name,vals:readVals()}); selectedPresetId=id; savePresets(); renderPresetChips(); }
-byId('btnSaveOver').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設');return} const p=presets.find(x=>x.id===selectedPresetId); p.vals=readVals(); savePresets(); toastOnce('已儲存到選中預設'); }
-byId('btnRename').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設');return} const p=presets.find(x=>x.id===selectedPresetId); const name=prompt('新的名稱：',p.name); if(!name) return; p.name=name; savePresets(); renderPresetChips(); }
-byId('btnDelete').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設');return} presets=presets.filter(x=>x.id!==selectedPresetId); selectedPresetId=null; savePresets(); renderPresetChips(); }
-byId('btnResetAll').onclick=()=>{ sBright.value=110; sContrast.value=120; sSat.value=110; sSharp.value=30; sGamma.value=120; }
-renderPresetChips();
+function renderPresetChips(){ presetList.innerHTML=''; presets.forEach(p=>{ const b=document.createElement('button'); b.className='preset-btn'+(p.id===selectedPresetId?' active':''); b.textContent=p.name; b.onclick=()=>{selectedPresetId=p.id; writeVals(p.vals); renderPresetChips();}; presetList.appendChild(b); }); }
+function savePresets(){ localStorage.setItem(PRESET_KEY, JSON.stringify(presets)); }
+document.getElementById('btnAddPreset').onclick=()=>{ const name=prompt('預設名稱：','我的預設'); if(!name) return; const id=Date.now(); presets.push({id,name,vals:readCurrentVals()}); selectedPresetId=id; savePresets(); renderPresetChips(); };
+document.getElementById('btnSaveOver').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設'); return;} const p=presets.find(x=>x.id===selectedPresetId); p.vals=readCurrentVals(); savePresets(); toastOnce('已儲存到選中預設'); };
+document.getElementById('btnRename').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設'); return;} const p=presets.find(x=>x.id===selectedPresetId); const name=prompt('新的名稱：',p.name); if(!name) return; p.name=name; savePresets(); renderPresetChips(); };
+document.getElementById('btnDelete').onclick=()=>{ if(!selectedPresetId){alert('請先點選一個預設'); return;} presets=presets.filter(x=>x.id!==selectedPresetId); selectedPresetId=null; savePresets(); renderPresetChips(); };
+document.getElementById('btnResetAll').onclick=()=>{ sBright.value=110; sContrast.value=120; sSat.value=110; sSharp.value=30; sGamma.value=120; };
 
-/* ====== 渲染回圈 ====== */
-function loop(ts=0){
-  requestAnimationFrame(loop);
-  if(!video.videoWidth) return;
-  const W=cv.width,H=cv.height; ctx.save();
-  ctx.clearRect(0,0,W,H); ctx.translate(W/2,H/2); ctx.scale(flipH,flipV); ctx.rotate(rot*Math.PI/180);
-  const w=video.videoWidth, h=video.videoHeight;
-  // 置中等比裁切填滿到方形
-  const s=Math.max(W/w, H/h); const dw=w*s, dh=h*s;
-  ctx.drawImage(video,-dw/2,-dh/2,dw,dh);
-  ctx.restore();
-
-  // 影像調整（依 UI 值，輕度處理）
-  const img=ctx.getImageData(0,0,W,H), data=img.data;
-  const b=+sBright.value/100, c=+sContrast.value/100, sat=+sSat.value/100, sh=+sSharp.value/100, g=+sGamma.value/100;
-  // LUT 預先
-  const lutBright = 255*(b-1);
-  for(let i=0;i<data.length;i+=4){
-    let r=data[i],g1=data[i+1],b1=data[i+2];
-    // gamma
-    r=255*Math.pow((r/255), (1/(g)));
-    g1=255*Math.pow((g1/255),(1/(g)));
-    b1=255*Math.pow((b1/255),(1/(g)));
-    // brightness + contrast
-    r=((r-128)*c+128)+lutBright; g1=((g1-128)*c+128)+lutBright; b1=((b1-128)*c+128)+lutBright;
-    // saturation
-    const y=0.299*r+0.587*g1+0.114*b1;
-    r=y+(r-y)*sat; g1=y+(g1-y)*sat; b1=y+(b1-y)*sat;
-    data[i]=r; data[i+1]=g1; data[i+2]=b1;
-  }
-  ctx.putImageData(img,0,0);
-
-  // 簡易銳利（Unsharp，強度由 sSharp 控）
-  if(sh>0.1){
-    const k=sh*0.5; // 0.05~0.3
-    // 取鄰近像素簡化銳化（小性能花費）
-    const blur=ctx.getImageData(0,0,W,H);
-    const d=img.data, db=blur.data;
-    // 3x3 box blur 的近似（一次平移混合）
-    ctx.globalAlpha=0.5; ctx.drawImage(cv,1,0); ctx.drawImage(cv,-1,0); ctx.drawImage(cv,0,1); ctx.drawImage(cv,0,-1);
-    ctx.globalAlpha=1; const blur2=ctx.getImageData(0,0,W,H); const db2=blur2.data;
-    for(let i=0;i<d.length;i+=4){
-      const bpx=(db[i]+db2[i])*0.5, bpy=(db[i+1]+db2[i+1])*0.5, bpz=(db[i+2]+db2[i+2])*0.5;
-      d[i]=clamp(d[i]+(d[i]-bpx)*k); d[i+1]=clamp(d[i+1]+(d[i+1]-bpy)*k); d[i+2]=clamp(d[i+2]+(d[i+2]-bpz)*k);
-    }
-    ctx.putImageData(img,0,0);
-  }
-
-  autoQualityTick();
-}
-
-/* ====== 小工具 ====== */
-function clamp(v){return v<0?0:(v>255?255:v)}
-function byId(id){return document.getElementById(id)}
+(async function boot(){ applyLang(); await listCams(); if(selCam.value) await openCam(selCam.value); renderPresetChips(); })();
 </script>
 </body>
 </html>
+"""
+
+with open(os.path.join(root, "index.html"), "w", encoding="utf-8") as f:
+    f.write(index_html)
+
+zip_path = "/mnt/data/MediCamWeb_Pack_v1.zip"
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+    z.write(os.path.join(root, "index.html"), arcname="index.html")
+
+zip_path
